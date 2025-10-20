@@ -37,7 +37,7 @@ def main():
 
     if not os.path.exists(ssl_keyfile) or not os.path.exists(ssl_certfile):
         logger.error(f"SSL certificates not found: {ssl_keyfile}, {ssl_certfile}")
-        logger.info("Please run: openssl req -x509 -newkey rsa:4096 -keyout certs/key.pem -out certs/cert.pem -days 365 -nodes -subj '/C=US/ST=CA/L=SF/O=RealTimeTranslator/CN=YOUR_IP' -addext 'subjectAltName=IP:YOUR_IP,IP:127.0.0.1,DNS:localhost'")
+        logger.info("Please run: openssl req -x509 -newkey rsa:4096 -keyout certs/key.pem -out certs/cert.pem -days 365 -nodes -subj '/C=US/ST=CA/L=SF/O=RealTimeTranslator/CN=10.43.1.247' -addext 'subjectAltName=IP:10.43.1.247,IP:127.0.0.1,DNS:localhost'")
         sys.exit(1)
 
     # Create the FastAPI app
@@ -49,9 +49,9 @@ def main():
 
     logger.info(f"Server will start at https://0.0.0.0:{port}")
     logger.info("Remote access URLs:")
-    logger.info(f"  - https://YOUR_IP:{port}/frontend")
-    logger.info(f"  - https://YOUR_IP:{port}/docs")
-    logger.info(f"  - https://YOUR_IP:{port}/health")
+    logger.info(f"  - https://10.43.1.247:{port}/frontend")
+    logger.info(f"  - https://10.43.1.247:{port}/docs")
+    logger.info(f"  - https://10.43.1.247:{port}/health")
     logger.info("")
     logger.info("Local access URLs:")
     logger.info(f"  - https://localhost:{port}/frontend")
