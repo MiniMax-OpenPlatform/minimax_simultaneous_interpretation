@@ -83,3 +83,12 @@ datasets/
 # Temporary files
 *.tmp
 *.temp
+
+# API documentation files (contain sensitive examples)
+t2v.txt
+translate.txt
+
+# Test files (may contain API keys)
+test_*.py
+*test.py
+tests/

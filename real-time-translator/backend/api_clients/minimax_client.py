@@ -147,8 +147,14 @@ Translation:"""
 
 async def test_minimax_client():
     """Test function for MiniMax client"""
-    # Use the provided API key for testing
-    api_key = "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.eyJHcm91cE5hbWUiOiIvIiwiVXNlck5hbWUiOiLlhq_pm68iLCJBY2NvdW50IjoiIiwiU3ViamVjdElEIjoiMTY4NjgzMzY3NzA0Njc4MCIsIlBob25lIjoiMTg4MTE0NDU3MjgiLCJHcm91cElEIjoiMTY4NjgzMzY3NzM2NTQ1OSIsIlBhZ2VOYW1lIjoiIiwiTWFpbCI6IjE3ODk5ODExMTNAcXEuY29tIiwiQ3JlYXRlVGltZSI6IjIwMjUtMDItMjEgMTg6MjA6MTciLCJUb2tlblR5cGUiOjEsImlzcyI6Im1pbmltYXgifQ.fxmF-4CPd3efpqdJImkuwHC4c6Ig91PJ-HI0Hn_U1gL80mA5Ku_uLXP7xwflpp5DtCf8C1tj48Itdbi_bLoh9gQ0ZHnNpDe_vEQqXBwpVe9CKnqkNeeneVa3lKCRW2iCzAS4CoucTBBq9pDpLZKI7bsXVOq6ONxjaOa4LPkMv7EjLZVzyQcDlKuVKU8_fdiPiWEa0cztILtkTBqYeUJ1sZnh4j0ncuve17ky0-q4m-MyVahLJPJIektp_Rnd95xZYqS2fn0874BSfihMKlT2xaZUhJ_hpYcVw-fSEKzR7T5nOmUDTTKXYHlqn0sLzcetz4AtdJ8zGicVoALqnpVLtA"
+    import os
+
+    # Get API key from environment variable
+    api_key = os.getenv("MINIMAX_API_KEY")
+    if not api_key:
+        print("MINIMAX_API_KEY not found in environment variables")
+        print("Please set MINIMAX_API_KEY environment variable")
+        return
 
     client = MiniMaxClient(api_key)
 
