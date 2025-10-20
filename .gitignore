@@ -53,14 +53,33 @@ Thumbs.db
 *.mp3
 *.m4a
 
-# Certificates
+# Certificates (auto-generated)
 *.pem
 *.key
+certs/*.pem
+certs/*.key
 
-# Lock files
+# Lock files (auto-generated)
 uv.lock
 poetry.lock
 
-# Cache
+# Cache and model files
 .cache/
-models/whisper/
+models/
+*.pt
+*.bin
+*.model
+*.safetensors
+*.h5
+*.onnx
+
+# Large data files
+*.tar.gz
+*.zip
+*.7z
+data/
+datasets/
+
+# Temporary files
+*.tmp
+*.temp
