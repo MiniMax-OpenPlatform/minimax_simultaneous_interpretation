@@ -129,8 +129,11 @@ VOICE_ID=male-qn-qingse
 # 创建证书目录
 mkdir -p certs
 
-# 生成自签名证书（本地开发用）
+# 本地开发证书（仅localhost访问）
 openssl req -x509 -newkey rsa:4096 -keyout certs/key.pem -out certs/cert.pem -days 365 -nodes -subj "/C=CN/ST=Beijing/L=Beijing/O=MiniMaxTranslator/CN=localhost" -addext "subjectAltName=IP:127.0.0.1,DNS:localhost"
+
+# 远程访问证书（替换YOUR_IP为你的实际IP地址）
+# openssl req -x509 -newkey rsa:4096 -keyout certs/key.pem -out certs/cert.pem -days 365 -nodes -subj "/C=CN/ST=Beijing/L=Beijing/O=MiniMaxTranslator/CN=YOUR_IP" -addext "subjectAltName=IP:YOUR_IP,IP:127.0.0.1,DNS:localhost"
 ```
 
 #### 6. 启动服务
@@ -143,11 +146,36 @@ python run_remote.py
 ```
 
 ### 访问系统
-打开浏览器访问：
-- **本地访问**: https://localhost:8000/frontend
-- **远程访问**: https://your-ip:8000/frontend
 
-> ⚠️ **注意**: 首次访问时浏览器会提示SSL证书不安全，点击"高级"→"继续访问"即可。
+#### 本地访问
+```bash
+# 使用run.py启动（默认8000端口）
+python run.py
+```
+浏览器访问：https://localhost:8000/frontend
+
+#### 远程访问
+```bash
+# 方式1：使用环境变量配置
+export HOST=0.0.0.0
+export PORT=8000
+python run_remote.py
+
+# 方式2：配置.env文件
+echo "HOST=0.0.0.0" >> .env
+echo "PORT=8000" >> .env
+python run_remote.py
+```
+
+浏览器访问：
+- **网络访问**: https://your-actual-ip:8000/frontend
+- **API文档**: https://your-actual-ip:8000/docs
+- **健康检查**: https://your-actual-ip:8000/health
+
+> ⚠️ **注意**:
+> 1. 首次访问时浏览器会提示SSL证书不安全，点击"高级"→"继续访问"即可
+> 2. 远程访问需要生成包含实际IP的SSL证书
+> 3. `run_remote.py`会自动检测并显示您的IP地址
 
 ## 🎮 使用指南
 
@@ -232,14 +260,20 @@ VOICE_ID=male-qn-qingse
 
 #### 服务器配置
 ```bash
-# 服务器地址
+# 服务器地址（远程访问使用0.0.0.0，本地使用127.0.0.1）
 HOST=0.0.0.0
+# 服务器端口（可自定义，默认8000）
 PORT=8000
 
 # SSL证书路径
 SSL_KEYFILE=certs/key.pem
 SSL_CERTFILE=certs/cert.pem
 ```
+
+**远程访问配置说明**：
+- `HOST=0.0.0.0`：监听所有网络接口，允许外部访问
+- `HOST=127.0.0.1`：仅本地访问
+- `PORT`：可修改为任意可用端口，避免冲突
 
 #### Whisper配置
 ```bash
@@ -530,8 +564,12 @@ sudo systemctl start minimax-translator
 **问题**: 浏览器提示证书不安全
 **解决**:
 ```bash
-# 重新生成证书
-openssl req -x509 -newkey rsa:4096 -keyout certs/key.pem -out certs/cert.pem -days 365 -nodes -subj "/C=CN/ST=Beijing/L=Beijing/O=MiniMaxTranslator/CN=localhost"
+# 本地访问证书
+openssl req -x509 -newkey rsa:4096 -keyout certs/key.pem -out certs/cert.pem -days 365 -nodes -subj "/C=CN/ST=Beijing/L=Beijing/O=MiniMaxTranslator/CN=localhost" -addext "subjectAltName=IP:127.0.0.1,DNS:localhost"
+
+# 远程访问证书（获取本机IP）
+export LOCAL_IP=$(ip route get 1 | awk '{print $7; exit}')
+openssl req -x509 -newkey rsa:4096 -keyout certs/key.pem -out certs/cert.pem -days 365 -nodes -subj "/C=CN/ST=Beijing/L=Beijing/O=MiniMaxTranslator/CN=$LOCAL_IP" -addext "subjectAltName=IP:$LOCAL_IP,IP:127.0.0.1,DNS:localhost"
 
 # 或者在浏览器中点击"高级"→"继续访问"
 ```
