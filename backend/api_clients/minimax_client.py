@@ -30,7 +30,7 @@ class MiniMaxClient:
         hot_words_prompt = ""
         if hot_words and len(hot_words) > 0:
             hot_words_str = "、".join(hot_words)
-            hot_words_prompt = f"\n专业术语和热词包括：{hot_words_str}\n请特别注意这些术语的准确翻译。\n"
+            hot_words_prompt = f"\nIMPORTANT - Professional terms and hot words: {hot_words_str}\nThese terms must be preserved EXACTLY as written (including capitalization, spacing, and spelling). Do NOT change their case or format.\n"
 
         # 构建翻译风格提示
         style_prompt = ""
@@ -48,14 +48,15 @@ class MiniMaxClient:
 
         prompt = f"""You are a professional translator. Translate the following text from its original language to {target_language}.
 {hot_words_prompt}{style_prompt}
-IMPORTANT RULES:
+CRITICAL TRANSLATION RULES:
 - Output ONLY the translated text
 - Do NOT include explanations, notes, or phrases like "The result of X is Y"
 - Do NOT add quotation marks around the translation
 - Do NOT mention the original text
 - Do NOT add any prefixes or suffixes
 - Keep the same tone and meaning
-- Pay special attention to the professional terms and hot words mentioned above
+- MANDATORY: When translating, if any professional terms or hot words appear in the text, preserve them EXACTLY as specified above (exact capitalization, spelling, spacing)
+- Hot words should appear in the translation with their EXACT original format
 {style_instructions}
 Text to translate: {text}
 

@@ -52,9 +52,10 @@ async def startup_event():
     """Application startup event"""
     logger.info("Starting Real-time Translator application...")
 
-    # Preload Whisper model in background
+    # Force load Whisper model immediately to avoid first-use delay
     whisper_service = get_whisper_service()
-    whisper_service.preload_model()
+    whisper_service.load_model()  # Force immediate model loading
+    logger.info("Whisper model preloading completed during startup")
 
     logger.info("Application startup complete")
 
@@ -124,7 +125,7 @@ async def serve_frontend():
     <head>
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>Real-time Translator</title>
+        <title>MiniMax_Simultaneous Interpretation</title>
         <style>
             body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 40px; background-color: #f8f9fa; }
             .container { max-width: 900px; margin: 0 auto; }
@@ -136,12 +137,6 @@ async def serve_frontend():
                 padding: 20px;
                 border-radius: 12px;
                 box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-                background-image: linear-gradient(45deg, #f8f9fa 25%, transparent 25%),
-                                  linear-gradient(-45deg, #f8f9fa 25%, transparent 25%),
-                                  linear-gradient(45deg, transparent 75%, #f8f9fa 75%),
-                                  linear-gradient(-45deg, transparent 75%, #f8f9fa 75%);
-                background-size: 20px 20px;
-                background-position: 0 0, 0 10px, 10px -10px, -10px 0px;
             }
             .message {
                 margin: 15px 0;
@@ -250,16 +245,16 @@ async def serve_frontend():
     </head>
     <body>
         <div class="container">
-            <h1>🎙️ Real-time Translator</h1>
+            <h1>🎙️ MiniMax_Simultaneous Interpretation</h1>
 
             <div class="config-panel">
                 <h3>Configuration</h3>
                 <div>
-                    <input type="text" id="minimax-key" placeholder="MiniMax API Key" />
-                    <input type="text" id="t2v-key" placeholder="T2V API Key" />
+                    <input type="text" id="minimax-key" placeholder="MiniMax API Key (用于翻译和语音合成)" style="width: 450px;" />
                 </div>
                 <div>
                     <input type="text" id="voice-id" placeholder="Voice ID" value="male-qn-qingse" />
+                    <label for="target-language" style="margin: 8px; font-weight: 500; color: #495057;">目标语言:</label>
                     <select id="target-language">
                         <option value="English">English</option>
                         <option value="中文">中文</option>
@@ -299,6 +294,10 @@ async def serve_frontend():
             let isRecording = false;
             let mediaRecorder = null;
             let audioChunks = [];
+
+            // Performance monitoring
+            let speechStartTime = null;
+            let lastAudioSentTime = null;
 
             // Streaming audio manager with Web Audio API
             const streamingAudio = {
@@ -428,6 +427,12 @@ async def serve_frontend():
 
                         audio.addEventListener('ended', () => {
                             console.log(`[QUEUE] ✅ Audio playback ENDED for task ${queueItem.taskId.substring(0,8)}`);
+                            if (speechStartTime) {
+                                const audioEndTime = performance.now();
+                                const speechToAudioMs = audioEndTime - speechStartTime;
+                                console.log(`⏱️ Frontend Performance: Speech to Audio Complete = ${speechToAudioMs.toFixed(0)}ms`);
+                                speechStartTime = null; // Reset for next speech
+                            }
                             this.onAudioEnded(queueItem.taskId, audioUrl);
                         });
 
@@ -534,9 +539,21 @@ async def serve_frontend():
                         document.getElementById('record-btn').disabled = false;
                         break;
                     case 'transcription':
+                        console.log('📥 Received transcription message:', data.text);
+                        if (speechStartTime) {
+                            const transcriptionTime = performance.now();
+                            const speechToTranscriptionMs = transcriptionTime - speechStartTime;
+                            console.log(`⏱️ Frontend Performance: Speech to Transcription = ${speechToTranscriptionMs.toFixed(0)}ms`);
+                        }
                         addMessage(data.text, 'original');
+                        console.log('✅ Transcription message added to chat');
                         break;
                     case 'translation':
+                        if (speechStartTime) {
+                            const translationTime = performance.now();
+                            const speechToTranslationMs = translationTime - speechStartTime;
+                            console.log(`⏱️ Frontend Performance: Speech to Translation = ${speechToTranslationMs.toFixed(0)}ms`);
+                        }
                         addMessage(data.translated_text, 'translated');
                         break;
                     case 'audio_chunk':
@@ -599,9 +616,11 @@ async def serve_frontend():
                 const hotWordsText = document.getElementById('hot-words').value.trim();
                 const hotWords = hotWordsText ? hotWordsText.split('\\n').map(word => word.trim()).filter(word => word.length > 0) : [];
 
+                const minimaxApiKey = document.getElementById('minimax-key').value.trim();
+
                 const config = {
-                    minimax_api_key: document.getElementById('minimax-key').value.trim(),
-                    t2v_api_key: document.getElementById('t2v-key').value.trim(),
+                    minimax_api_key: minimaxApiKey,
+                    t2v_api_key: minimaxApiKey,  // 使用同一个API Key
                     voice_id: document.getElementById('voice-id').value.trim(),
                     target_language: document.getElementById('target-language').value,
                     translation_style: document.getElementById('translation-style').value,
@@ -610,8 +629,8 @@ async def serve_frontend():
 
                 console.log('Configuration:', config);
 
-                if (!config.minimax_api_key || !config.t2v_api_key) {
-                    alert('Please enter both API keys');
+                if (!config.minimax_api_key) {
+                    alert('请输入MiniMax API Key');
                     return;
                 }
 
@@ -624,6 +643,7 @@ async def serve_frontend():
                     };
                     console.log('Sending configuration message:', message);
                     ws.send(JSON.stringify(message));
+
                 } catch (error) {
                     console.error('Failed to send configuration:', error);
                     updateStatus('Failed to send configuration: ' + error.message);
@@ -658,7 +678,7 @@ async def serve_frontend():
                     });
 
                     const source = audioContext.createMediaStreamSource(stream);
-                    const processor = audioContext.createScriptProcessor(4096, 1, 1);
+                    const processor = audioContext.createScriptProcessor(1024, 1, 1);
 
                     processor.onaudioprocess = (event) => {
                         const inputBuffer = event.inputBuffer;
@@ -677,21 +697,45 @@ async def serve_frontend():
                             updateStatus(`Recording... Audio level: ${(audioLevel * 100).toFixed(0)}%`);
                         }
 
-                        // Convert Float32Array to 16-bit PCM
-                        const pcmData = new Int16Array(inputData.length);
-                        for (let i = 0; i < inputData.length; i++) {
-                            pcmData[i] = Math.max(-32768, Math.min(32767, inputData[i] * 32768));
+                        // 设置麦克风阈值，低于阈值发送静音数据
+                        const microphoneThreshold = 0.15; // 15% 阈值，进一步过滤杂音
+                        let audioDataToSend;
+
+                        if (audioLevel >= microphoneThreshold) {
+                            // 音量超过阈值，发送真实音频数据
+                            // Record speech timing for performance monitoring
+                            if (!speechStartTime) {
+                                speechStartTime = performance.now();
+                                console.log('🎤 ⏱️ Speech detection started');
+                            }
+
+                            // Convert Float32Array to 16-bit PCM
+                            const pcmData = new Int16Array(inputData.length);
+                            for (let i = 0; i < inputData.length; i++) {
+                                pcmData[i] = Math.max(-32768, Math.min(32767, inputData[i] * 32768));
+                            }
+                            audioDataToSend = pcmData;
+
+                            console.log(`Sent REAL audio chunk: ${pcmData.length * 2} bytes, level: ${(audioLevel * 100).toFixed(1)}%`);
+                        } else {
+                            // 音量低于阈值，发送静音数据
+                            const silentData = new Int16Array(inputData.length);
+                            // silentData 默认都是0，即静音
+                            audioDataToSend = silentData;
+
+                            console.log(`Sent SILENT audio chunk: ${silentData.length * 2} bytes, level: ${(audioLevel * 100).toFixed(1)}% (below threshold)`);
                         }
 
+                        lastAudioSentTime = performance.now();
+
                         // Convert to base64 and send
-                        const base64 = btoa(String.fromCharCode.apply(null, new Uint8Array(pcmData.buffer)));
+                        const base64 = btoa(String.fromCharCode.apply(null, new Uint8Array(audioDataToSend.buffer)));
 
                         if (ws && ws.readyState === WebSocket.OPEN) {
                             ws.send(JSON.stringify({
                                 type: 'audio_data',
                                 data: { audio: base64 }
                             }));
-                            console.log(`Sent audio chunk: ${pcmData.length * 2} bytes, level: ${(audioLevel * 100).toFixed(1)}%`);
                         }
                     };
 
@@ -775,7 +819,39 @@ async def serve_frontend():
             }
 
             function clearChat() {
+                console.log('🧹 Clearing chat and stopping all ongoing tasks...');
+
+                // Clear chat display
                 document.getElementById('chat').innerHTML = '';
+
+                // Stop and clear all audio playback
+                if (streamingAudio) {
+                    // Stop currently playing audio
+                    streamingAudio.isPlayingAny = false;
+                    streamingAudio.currentlyPlaying = null;
+
+                    // Clear audio queue
+                    streamingAudio.audioQueue = [];
+
+                    console.log('🔇 Audio queue cleared and playback stopped');
+                }
+
+                // Stop recording if active
+                if (isRecording) {
+                    stopRecording();
+                    console.log('⏹️ Recording stopped');
+                }
+
+                // Send clear command to backend
+                if (ws && ws.readyState === WebSocket.OPEN) {
+                    ws.send(JSON.stringify({
+                        type: 'clear_all_tasks'
+                    }));
+                    console.log('📡 Clear command sent to backend');
+                }
+
+                updateStatus('Chat cleared - all tasks stopped');
+                console.log('✅ Clear chat completed');
             }
 
             function getStatus() {
@@ -979,6 +1055,7 @@ async def serve_frontend():
             function updateStatus(message) {
                 document.getElementById('status').textContent = message;
             }
+
 
             // Connect on page load
             connect();

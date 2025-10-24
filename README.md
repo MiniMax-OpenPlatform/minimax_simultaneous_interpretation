@@ -1,306 +1,641 @@
-# 🎙️ MiniMax实时同声传译系统
+# MiniMax 同声传译系统
 
-基于Whisper ASR、MiniMax翻译API和T2V语音合成技术的实时语音翻译系统，支持语音转文字、实时翻译和语音合成的完整流水线。
+基于MiniMax API的实时语音翻译系统，支持多语言同声传译、语音识别、文本翻译和语音合成。
 
-## ✨ 核心功能
+![项目状态](https://img.shields.io/badge/状态-稳定-green)
+![Python版本](https://img.shields.io/badge/Python-3.8+-blue)
+![许可证](https://img.shields.io/badge/许可证-MIT-orange)
 
-- **🎤 实时语音识别**：采用Whisper Large模型，支持高精度多语言ASR
-- **🌍 自动语言检测**：自动识别输入语言，无需手动选择
-- **🔇 智能语音活动检测**：VAD算法优化，500ms静音检测，过滤噪音干扰
-- **⚡ 实时翻译**：MiniMax API提供快速准确的多语言翻译
-- **🔊 语音合成**：T2V API支持300+种音色的自然语音输出
-- **💻 Web界面**：基于浏览器的现代化界面，支持麦克风访问
-- **📋 队列管理**：智能任务队列，支持并发处理和超时控制
-- **🎯 热词支持**：专业术语定制，提升特定领域翻译准确性
-- **🎨 翻译风格**：支持默认、口语化、商务、学术四种翻译风格
+## 🌟 功能特性
+
+### 核心功能
+- **实时语音识别**：基于OpenAI Whisper模型，支持多语言语音转文字
+- **智能翻译**：集成MiniMax API，提供高质量的文本翻译服务
+- **语音合成**：支持指定音色ID的文本转语音功能
+- **热词保护**：确保专业术语和品牌名称的准确翻译
+- **多种翻译风格**：支持默认、口语化、商务、学术等不同场景
+
+### 技术特性
+- **WebSocket实时通信**：低延迟的双向通信
+- **流式音频处理**：边录边译，提升用户体验
+- **智能语音检测**：基于VAD技术的语音活动检测
+- **SSL安全连接**：支持HTTPS/WSS加密传输
+- **响应式前端**：现代化的Web界面设计
 
 ## 🏗️ 系统架构
 
+### 整体架构
 ```
-用户语音 → VAD检测 → Whisper ASR → 翻译队列 → MiniMax翻译
-                                           ↓
-浏览器播放 ← T2V合成 ← 音频合成 ← 翻译文本
+┌─────────────────┐    WebSocket     ┌─────────────────┐
+│                 │◄────────────────►│                 │
+│   前端界面      │                  │   FastAPI后端   │
+│   (Web UI)      │                  │                 │
+└─────────────────┘                  └─────────────────┘
+                                              │
+                                              ▼
+┌─────────────────────────────────────────────────────────────┐
+│                      后端服务层                            │
+├─────────────────┬─────────────────┬─────────────────────────┤
+│   语音识别      │   翻译队列      │      API客户端          │
+│   (Whisper)     │   (Queue)       │   (MiniMax/T2V)         │
+└─────────────────┴─────────────────┴─────────────────────────┘
+```
+
+### 核心组件
+
+#### 1. 前端层 (Frontend)
+- **技术栈**：HTML5 + JavaScript + WebSocket API
+- **功能**：音频录制、实时显示、配置管理
+- **特点**：响应式设计，支持多种浏览器
+
+#### 2. WebSocket处理层
+- **组件**：`websocket_handler.py`
+- **功能**：管理WebSocket连接，处理实时消息
+- **特点**：支持多客户端并发连接
+
+#### 3. 语音处理层
+- **语音识别**：`whisper_service.py` - 基于OpenAI Whisper
+- **音频处理**：`audio_processor.py` - VAD检测和音频预处理
+- **支持格式**：16kHz PCM音频
+
+#### 4. 翻译服务层
+- **翻译队列**：`translation_queue.py` - 智能任务调度
+- **MiniMax客户端**：`minimax_client.py` - 文本翻译
+- **T2V客户端**：`t2v_client.py` - 语音合成
+
+#### 5. 数据流程
+```
+音频输入 → 语音识别 → 文本翻译 → 语音合成 → 音频输出
+   ↓           ↓           ↓           ↓           ↓
+麦克风录制  → Whisper   → MiniMax   →  T2V API  → 扬声器播放
 ```
 
 ## 🚀 快速开始
 
-### 1. 环境要求
+### 环境要求
+- **Python**: 3.8 或更高版本
+- **操作系统**: Windows / macOS / Linux
+- **硬件**: 支持CUDA的GPU（可选，用于加速Whisper推理）
+- **网络**: 稳定的互联网连接（访问MiniMax API）
 
-- **Python**: 3.10+
-- **包管理器**: UV
-- **系统工具**: OpenSSL（用于HTTPS证书）
-- **硬件**: 支持麦克风的设备
-- **网络**: 稳定的互联网连接
+### 安装步骤
 
-### 2. 安装部署
-
+#### 1. 克隆项目
 ```bash
-# 克隆项目
-git clone https://github.com/zxwang2018/MiniMax-Simultaneous-Interpretation.git
-cd MiniMax-Simultaneous-Interpretation/real-time-translator
-
-# 安装依赖
-uv sync
-
-# 生成SSL证书（用于HTTPS访问）
-mkdir -p certs
-openssl req -x509 -newkey rsa:4096 -keyout certs/key.pem -out certs/cert.pem -days 365 -nodes -subj "/C=CN/ST=Beijing/L=Beijing/O=RealTimeTranslator/CN=localhost"
+git clone https://github.com/your-username/minimax-simultaneous-interpretation.git
+cd minimax-simultaneous-interpretation
 ```
 
-### 3. 配置API密钥
-
+#### 2. 创建虚拟环境
 ```bash
-# 复制环境变量模板
+# 使用venv
+python -m venv .venv
+
+# Windows激活
+.venv\Scripts\activate
+
+# macOS/Linux激活
+source .venv/bin/activate
+```
+
+#### 3. 安装依赖
+```bash
+pip install -r requirements.txt
+```
+
+#### 4. 配置环境变量
+```bash
+# 复制配置模板
 cp .env.example .env
 
-# 编辑配置文件，填入你的API密钥
+# 编辑配置文件，添加你的API密钥
 nano .env
 ```
 
-**必填配置项**：
-```env
-MINIMAX_API_KEY=你的MiniMax_API密钥
-T2V_API_KEY=你的T2V_API密钥
+**必须配置的环境变量**：
+```bash
+# MiniMax API配置
+MINIMAX_API_KEY=your_minimax_api_key_here
+
+# T2V API配置（通常与MiniMax相同）
+T2V_API_KEY=your_minimax_api_key_here
+
+# 默认音色配置
 VOICE_ID=male-qn-qingse
 ```
 
-### 4. 启动服务
-
+#### 5. 生成SSL证书
 ```bash
-# 本地访问模式
-python run.py
+# 创建证书目录
+mkdir -p certs
 
-# 远程访问模式（支持其他设备访问）
-python run_remote.py
-
-# 或使用UV运行
-uv run python run_remote.py
+# 生成自签名证书（本地开发用）
+openssl req -x509 -newkey rsa:4096 -keyout certs/key.pem -out certs/cert.pem -days 365 -nodes -subj "/C=CN/ST=Beijing/L=Beijing/O=MiniMaxTranslator/CN=localhost" -addext "subjectAltName=IP:127.0.0.1,DNS:localhost"
 ```
 
-### 5. 访问系统
+#### 6. 启动服务
+```bash
+# 本地启动
+python run.py
 
-**本地访问**：
-- 🌐 **主界面**: https://localhost:18867/frontend
-- 📚 **API文档**: https://localhost:18867/docs
-- ❤️ **健康检查**: https://localhost:18867/health
+# 远程访问启动
+python run_remote.py
+```
 
-**远程访问**：
-- 🌐 **主界面**: https://你的服务器IP:18867/frontend
-- 📚 **API文档**: https://你的服务器IP:18867/docs
+### 访问系统
+打开浏览器访问：
+- **本地访问**: https://localhost:8000/frontend
+- **远程访问**: https://your-ip:8000/frontend
 
-## 🎯 使用指南
+> ⚠️ **注意**: 首次访问时浏览器会提示SSL证书不安全，点击"高级"→"继续访问"即可。
 
-### 基本操作流程
+## 🎮 使用指南
 
-1. **🔧 配置系统**：输入MiniMax和T2V的API密钥
-2. **🎤 开始录音**：点击"开始录音"按钮
-3. **🗣️ 自然对话**：正常语速说话，系统自动检测语音段落
-4. **👀 查看结果**：实时显示语音识别和翻译结果
-5. **🔊 听取翻译**：系统自动播放合成的语音翻译
+### 基础使用流程
 
-### 高级功能
+#### 1. 系统配置
+1. 打开Web界面
+2. 在配置面板中输入MiniMax API密钥
+3. 选择目标翻译语言
+4. 设置翻译风格（可选）
+5. 添加热词/专业术语（可选）
+6. 点击"Configure"按钮
 
-**热词定制**：
-- 在"热词/专业术语"文本框中输入专业词汇
-- 每行一个词汇，提升特定领域翻译准确性
+#### 2. 开始翻译
+1. 点击"Start Recording"开始录音
+2. 对着麦克风清晰说话
+3. 系统实时显示识别结果和翻译
+4. 自动播放翻译后的语音
+5. 点击"Stop Recording"结束录音
 
-**翻译风格选择**：
-- **默认**：标准翻译风格
-- **口语化**：更贴近日常对话的表达
-- **商务场景**：适合商务沟通的正式表达
-- **学术场景**：适合学术交流的专业表达
-
-## ⚙️ 配置选项
-
-### 环境变量说明
-
-| 变量名 | 说明 | 默认值 |
-|--------|------|--------|
-| `MINIMAX_API_KEY` | MiniMax翻译API密钥 | 必填 |
-| `T2V_API_KEY` | T2V语音合成API密钥 | 必填 |
-| `VOICE_ID` | 语音合成音色ID | `male-qn-qingse` |
-| `HOST` | 服务器主机地址 | `0.0.0.0` |
-| `PORT` | 服务器端口 | `18867` |
-| `WHISPER_MODEL` | Whisper模型大小 | `large` |
-| `VAD_MODE` | VAD算法严格程度(0-3) | `3` |
-| `SILENCE_THRESHOLD_MS` | 静音检测阈值(毫秒) | `500` |
-| `MAX_CONCURRENT_TRANSLATIONS` | 最大并发翻译数 | `3` |
+#### 3. 高级功能
+- **清空对话**: 点击"Clear Chat"清除所有翻译记录
+- **查看状态**: 点击"Get Status"查看系统运行状态
+- **调整配置**: 随时修改语言、风格等设置
 
 ### 支持的语言
 
-**输入语言**：自动检测（支持Whisper识别的所有语言）
-- 中文（普通话、粤语等方言）
-- 英语、日语、韩语
-- 法语、德语、西班牙语等
+#### 输入语言（自动识别）
+- 中文（普通话）
+- 英语
+- 日语
+- 西班牙语
+- 法语
+- 德语
+- 俄语
+- 韩语
+- ...（Whisper支持的99种语言）
 
-**输出语言**：
-- 中文、English、日本語、한국어
-- Español、Français、Deutsch等
+#### 输出语言
+- **English** - 英语
+- **中文** - 简体中文
+- **日本語** - 日语
+- **Español** - 西班牙语
 
-### 推荐音色
+### 翻译风格说明
 
-**中文音色**：
-- `male-qn-qingse`：男声，清澈磁性
-- `female-shaonv`：女声，温柔甜美
-- `broadcaster_male`：男播音员，专业标准
+| 风格 | 适用场景 | 特点 |
+|------|----------|------|
+| **默认** | 通用场景 | 标准翻译，平衡准确性和流畅性 |
+| **口语化** | 日常对话 | 使用口语表达，更自然亲切 |
+| **商务场景** | 商务会议 | 正式商务用语，专业术语准确 |
+| **学术场景** | 学术交流 | 学术化表达，术语精确 |
 
-**英文音色**：
-- `male-youthful`：年轻男声
-- `female-americana`：美式女声
+### 热词功能
+热词功能确保专业术语、品牌名称等保持原有格式：
 
-## 🖥️ 系统要求
+**示例**：
+- 输入热词：`MiniMax`
+- 原文：你觉得minimax公司怎样
+- 翻译：How do you think about **MiniMax** company
 
-### 最低配置
-- **内存**: 8GB（Whisper Large模型）
-- **存储**: 10GB可用空间
-- **CPU**: 4核心以上
-- **网络**: 稳定的互联网连接
+**使用技巧**：
+- 每行输入一个热词
+- 注意保持准确的大小写
+- 适用于品牌名、专业术语、人名等
 
-### 推荐配置
-- **内存**: 16GB以上
-- **显卡**: NVIDIA GTX 1660+（CUDA加速）
-- **CPU**: 8核心以上
-- **网络**: 高速网络连接
+## ⚙️ 配置选项
 
-### CUDA加速配置
+### 环境变量配置
 
+#### API配置
 ```bash
-# 检查CUDA可用性
-python -c "import torch; print(f'CUDA可用: {torch.cuda.is_available()}')"
+# MiniMax API密钥
+MINIMAX_API_KEY=sk-xxx
 
-# 启用GPU加速（推荐）
+# T2V API密钥（语音合成）
+T2V_API_KEY=sk-xxx
+
+# 默认音色ID
+VOICE_ID=male-qn-qingse
+```
+
+#### 服务器配置
+```bash
+# 服务器地址
+HOST=0.0.0.0
+PORT=8000
+
+# SSL证书路径
+SSL_KEYFILE=certs/key.pem
+SSL_CERTFILE=certs/cert.pem
+```
+
+#### Whisper配置
+```bash
+# 模型大小 (tiny, base, small, medium, large)
+WHISPER_MODEL=large
+
+# 计算设备 (cpu, cuda)
+WHISPER_DEVICE=cuda
+
+# 音频采样率
+SAMPLE_RATE=16000
+```
+
+#### 高级配置
+```bash
+# VAD模式 (0-3, 数字越大越敏感)
+VAD_MODE=3
+
+# 静音阈值（毫秒）
+SILENCE_THRESHOLD_MS=500
+
+# 并发翻译任务数
+MAX_CONCURRENT_TRANSLATIONS=3
+
+# 翻译超时时间（秒）
+DEFAULT_TIMEOUT_SECONDS=8.0
+
+# 日志级别
+LOG_LEVEL=INFO
+```
+
+### 音色选择
+系统支持多种预设音色，可通过`VOICE_ID`环境变量配置：
+
+| 音色ID | 描述 | 语言 |
+|--------|------|------|
+| `male-qn-qingse` | 男声-青涩 | 中文 |
+| `female-shaonv` | 女声-少女 | 中文 |
+| `male-yingqi` | 男声-英气 | 中文 |
+| `female-chengshu` | 女声-成熟 | 中文 |
+
+## 🛠️ 开发指南
+
+### 项目结构
+```
+minimax-simultaneous-interpretation/
+├── backend/                    # 后端核心代码
+│   ├── api_clients/           # API客户端模块
+│   │   ├── minimax_client.py  # MiniMax翻译客户端
+│   │   └── t2v_client.py      # T2V语音合成客户端
+│   ├── services/              # 核心服务模块
+│   │   ├── audio_processor.py # 音频处理服务
+│   │   ├── translation_queue.py # 翻译队列管理
+│   │   ├── websocket_handler.py # WebSocket处理
+│   │   └── whisper_service.py # Whisper语音识别
+│   └── app.py                 # FastAPI应用入口
+├── frontend/                  # 前端静态文件
+├── certs/                     # SSL证书目录
+├── docs/                      # 项目文档
+├── scripts/                   # 实用脚本
+├── .env.example              # 环境配置模板
+├── requirements.txt          # Python依赖
+├── run.py                    # 本地启动脚本
+└── run_remote.py             # 远程启动脚本
+```
+
+### API接口文档
+
+#### WebSocket消息格式
+
+**客户端 → 服务器**：
+```javascript
+// 配置系统
+{
+    "type": "configure",
+    "data": {
+        "minimax_api_key": "your-key",
+        "voice_id": "male-qn-qingse",
+        "target_language": "English",
+        "translation_style": "default",
+        "hot_words": ["MiniMax", "AI"]
+    }
+}
+
+// 开始录音
+{
+    "type": "start_recording"
+}
+
+// 音频数据
+{
+    "type": "audio_data",
+    "data": {
+        "audio": "base64-encoded-audio"
+    }
+}
+
+// 停止录音
+{
+    "type": "stop_recording"
+}
+```
+
+**服务器 → 客户端**：
+```javascript
+// 配置确认
+{
+    "type": "configured",
+    "data": {}
+}
+
+// 转录结果
+{
+    "type": "transcription",
+    "data": {
+        "text": "recognized text",
+        "language": "zh",
+        "confidence": 0.95
+    }
+}
+
+// 翻译结果
+{
+    "type": "translation",
+    "data": {
+        "task_id": "uuid",
+        "original_text": "原文",
+        "translated_text": "Translated text",
+        "target_language": "English"
+    }
+}
+
+// 音频数据
+{
+    "type": "audio_chunk",
+    "data": {
+        "task_id": "uuid",
+        "audio": "base64-audio-data",
+        "format": "mp3",
+        "is_final": false
+    }
+}
+```
+
+### 扩展开发
+
+#### 添加新的翻译服务
+1. 在`backend/api_clients/`创建新的客户端
+2. 实现`translate_text`异步方法
+3. 在翻译队列中集成新客户端
+
+#### 添加新的语音合成服务
+1. 在`backend/api_clients/`创建TTS客户端
+2. 实现`text_to_speech`方法
+3. 支持流式音频输出
+
+#### 自定义音频处理
+1. 修改`audio_processor.py`中的预处理逻辑
+2. 调整VAD参数以适应不同环境
+3. 添加音频降噪等功能
+
+### 性能优化
+
+#### GPU加速
+```bash
+# 安装CUDA版本的PyTorch
+pip install torch torchaudio --index-url https://download.pytorch.org/whl/cu118
+
+# 配置使用GPU
 export WHISPER_DEVICE=cuda
-
-# 如需使用CPU模式
-export WHISPER_DEVICE=cpu
 ```
 
-## 🔧 系统架构详解
+#### 模型选择
+| 模型 | 大小 | 内存占用 | 速度 | 准确性 |
+|------|------|----------|------|--------|
+| tiny | 39MB | ~1GB | 最快 | 较低 |
+| base | 74MB | ~1GB | 快 | 一般 |
+| small | 244MB | ~2GB | 中等 | 好 |
+| medium | 769MB | ~5GB | 慢 | 很好 |
+| large | 1550MB | ~10GB | 最慢 | 最佳 |
 
-### 后端组件
+#### 并发调优
+```bash
+# 调整并发翻译任务数
+MAX_CONCURRENT_TRANSLATIONS=5
 
-- **FastAPI**: Web服务器，支持WebSocket实时通信
-- **Whisper服务**: 语音识别，支持模型预加载和CUDA加速
-- **音频处理器**: VAD语音活动检测和音频分块
-- **翻译队列**: 智能队列管理，支持并发和超时控制
-- **API客户端**: MiniMax翻译和T2V语音合成集成
-
-### 关键文件结构
-
+# 调整超时时间
+DEFAULT_TIMEOUT_SECONDS=10.0
 ```
-real-time-translator/
-├── backend/
-│   ├── app.py                    # FastAPI主应用
-│   ├── services/
-│   │   ├── whisper_service.py    # Whisper ASR服务
-│   │   ├── audio_processor.py    # VAD和音频处理
-│   │   ├── translation_queue.py  # 队列管理
-│   │   └── websocket_handler.py  # WebSocket通信
-│   └── api_clients/
-│       ├── minimax_client.py     # MiniMax翻译客户端
-│       └── t2v_client.py         # T2V语音合成客户端
-├── certs/                        # SSL证书目录
-├── models/                       # Whisper模型持久化目录
-└── run_remote.py                 # 远程访问启动脚本
+
+## 🔧 部署指南
+
+### Docker部署
+
+#### 1. 构建镜像
+```bash
+# 创建Dockerfile
+cat > Dockerfile << EOF
+FROM python:3.9-slim
+
+WORKDIR /app
+COPY requirements.txt .
+RUN pip install -r requirements.txt
+
+COPY . .
+EXPOSE 8000
+
+CMD ["python", "run.py"]
+EOF
+
+# 构建镜像
+docker build -t minimax-translator .
+```
+
+#### 2. 运行容器
+```bash
+docker run -d \
+  --name translator \
+  -p 8000:8000 \
+  -e MINIMAX_API_KEY=your-key \
+  -v $(pwd)/certs:/app/certs \
+  minimax-translator
+```
+
+### 生产环境部署
+
+#### 使用Nginx反向代理
+```nginx
+server {
+    listen 80;
+    server_name your-domain.com;
+    return 301 https://$server_name$request_uri;
+}
+
+server {
+    listen 443 ssl;
+    server_name your-domain.com;
+
+    ssl_certificate /path/to/your/cert.pem;
+    ssl_certificate_key /path/to/your/key.pem;
+
+    location / {
+        proxy_pass https://localhost:8000;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+    }
+
+    location /ws {
+        proxy_pass https://localhost:8000;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+    }
+}
+```
+
+#### 使用systemd管理服务
+```bash
+# 创建服务文件
+sudo cat > /etc/systemd/system/minimax-translator.service << EOF
+[Unit]
+Description=MiniMax Translator Service
+After=network.target
+
+[Service]
+Type=simple
+User=your-user
+WorkingDirectory=/path/to/minimax-simultaneous-interpretation
+Environment=PATH=/path/to/.venv/bin
+ExecStart=/path/to/.venv/bin/python run.py
+Restart=always
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+# 启动服务
+sudo systemctl daemon-reload
+sudo systemctl enable minimax-translator
+sudo systemctl start minimax-translator
 ```
 
 ## 🐛 故障排除
 
-### 常见问题解决
+### 常见问题
 
-**HTTPS证书错误**
+#### 1. SSL证书错误
+**问题**: 浏览器提示证书不安全
+**解决**:
 ```bash
 # 重新生成证书
-rm -rf certs/
-mkdir certs
-openssl req -x509 -newkey rsa:4096 -keyout certs/key.pem -out certs/cert.pem -days 365 -nodes -subj "/C=CN/ST=Beijing/L=Beijing/O=RealTimeTranslator/CN=localhost"
+openssl req -x509 -newkey rsa:4096 -keyout certs/key.pem -out certs/cert.pem -days 365 -nodes -subj "/C=CN/ST=Beijing/L=Beijing/O=MiniMaxTranslator/CN=localhost"
+
+# 或者在浏览器中点击"高级"→"继续访问"
 ```
 
-**麦克风访问被拒绝**
-- 确保使用HTTPS协议访问
+#### 2. API密钥错误
+**问题**: 翻译失败，提示API密钥无效
+**解决**:
+- 检查`.env`文件中的`MINIMAX_API_KEY`
+- 确认API密钥有效且有足够余额
+- 检查网络连接是否正常
+
+#### 3. 音频权限问题
+**问题**: 无法录音，提示权限被拒绝
+**解决**:
 - 在浏览器中允许麦克风权限
-- 检查系统麦克风设置
+- 使用HTTPS访问（HTTP无法使用麦克风）
+- 检查操作系统的麦克风权限设置
 
-**Whisper模型加载失败**
+#### 4. Whisper模型下载失败
+**问题**: 首次运行时模型下载失败
+**解决**:
 ```bash
-# 检查CUDA环境
-python -c "import torch; print(torch.cuda.is_available())"
+# 手动下载模型
+python -c "import whisper; whisper.load_model('large')"
 
-# 强制使用CPU模式
-export WHISPER_DEVICE=cpu
-```
-
-**API连接错误**
-- 检查`.env`文件中的API密钥配置
-- 验证网络连接状态
-- 查看API调用频率限制
-
-### 性能优化建议
-
-**启用GPU加速**
-```bash
-# 使用CUDA加速Whisper
-export WHISPER_DEVICE=cuda
-```
-
-**内存优化**
-```bash
-# 测试时使用小模型
+# 或者使用较小的模型
 export WHISPER_MODEL=base
 ```
 
-**VAD参数调优**
+#### 5. CUDA内存不足
+**问题**: GPU内存不足导致Whisper崩溃
+**解决**:
 ```bash
-# 降低噪音敏感度
-export VAD_MODE=2
-# 调整静音检测阈值
-export SILENCE_THRESHOLD_MS=800
+# 使用较小的模型
+export WHISPER_MODEL=base
+
+# 或切换到CPU模式
+export WHISPER_DEVICE=cpu
 ```
 
-## 📖 技术文档
+### 日志调试
 
-- **交互式API文档**: https://localhost:18867/docs
-- **ReDoc文档**: https://localhost:18867/redoc
-- **OpenAPI规范**: https://localhost:18867/openapi.json
+#### 查看详细日志
+```bash
+# 设置调试级别
+export LOG_LEVEL=DEBUG
 
-## 🔒 安全提醒
+# 启动服务并查看日志
+python run.py 2>&1 | tee debug.log
+```
 
-- **API密钥安全**: 请妥善保管你的API密钥，不要在代码中硬编码
-- **HTTPS访问**: 生产环境请使用正式SSL证书
-- **防火墙设置**: 适当配置防火墙规则
+#### 常用日志位置
+- **应用日志**: 控制台输出
+- **WebSocket连接**: 查看浏览器开发者工具
+- **音频处理**: 检查VAD调试信息
 
-## 🤝 开发贡献
+### 性能监控
 
-欢迎提交Issue和Pull Request！
+#### 系统资源监控
+```bash
+# 监控CPU和内存使用
+htop
 
-1. Fork本仓库
-2. 创建功能分支
-3. 提交更改
-4. 添加测试
-5. 发起Pull Request
+# 监控GPU使用（如果使用CUDA）
+nvidia-smi -l 1
 
-## 📝 开源协议
+# 监控网络连接
+netstat -an | grep 8000
+```
 
-MIT License - 详见LICENSE文件
+## 🤝 贡献指南
 
-## 💬 技术支持
+我们欢迎所有形式的贡献！
 
-遇到问题时请按以下步骤：
+### 贡献方式
+1. **报告问题**: 在GitHub Issues中报告bug或提出改进建议
+2. **提交代码**: Fork项目后提交Pull Request
+3. **完善文档**: 改进README、注释或添加示例
+4. **分享经验**: 在Discussions中分享使用经验
 
-1. 查看故障排除章节
-2. 检查API文档说明
-3. 在GitHub Issues中搜索相关问题
-4. 创建新Issue并提供详细日志
+### 开发流程
+1. Fork本项目
+2. 创建功能分支: `git checkout -b feature/new-feature`
+3. 提交更改: `git commit -am 'Add new feature'`
+4. 推送分支: `git push origin feature/new-feature`
+5. 创建Pull Request
+
+### 代码规范
+- 遵循PEP 8 Python代码规范
+- 添加适当的注释和文档字符串
+- 编写单元测试覆盖新功能
+- 保持向后兼容性
+
+## 📄 许可证
+
+本项目采用 [MIT许可证](LICENSE)。
 
 ## 🙏 致谢
 
-本项目基于以下优秀的开源项目：
-
-- **OpenAI Whisper**: 语音识别模型
-- **FastAPI**: 现代化Web框架
-- **MiniMax API**: 高质量翻译服务
-- **T2V API**: 自然语音合成服务
+- **OpenAI Whisper**: 强大的语音识别模型
+- **MiniMax**: 优质的翻译和语音合成API
+- **FastAPI**: 现代化的Python Web框架
+- **Vue.js**: 响应式前端框架
 
 ---
 
-**⭐ 如果这个项目对你有帮助，请给个Star支持！**
+**⭐ 如果这个项目对您有帮助，请给我们一个Star！**

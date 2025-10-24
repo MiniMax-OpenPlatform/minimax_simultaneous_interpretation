@@ -45,7 +45,7 @@ def main():
 
     # Get configuration from environment
     host = "0.0.0.0"  # Listen on all interfaces for remote access
-    port = int(os.getenv("PORT", 18867))
+    port = 8867  # 使用8867端口避免8000端口冲突
 
     logger.info(f"Server will start at https://0.0.0.0:{port}")
     logger.info("Remote access URLs:")

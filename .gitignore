@@ -1,94 +1,79 @@
-# Python
+# Python-generated files
 __pycache__/
-*.py[cod]
-*$py.class
-*.so
-.Python
+*.py[oc]
+*.pyo
+*.pyd
 build/
-develop-eggs/
 dist/
-downloads/
-eggs/
-.eggs/
-lib/
-lib64/
-parts/
-sdist/
-var/
 wheels/
-*.egg-info/
-.installed.cfg
-*.egg
-MANIFEST
+*.egg-info
+.Python
 
 # Virtual environments
 .venv/
 venv/
-ENV/
 env/
+ENV/
 
-# Environment variables
+# Environment variables and secrets
 .env
-
-# IDE
-.vscode/
-.idea/
-*.swp
-*.swo
-
-# OS
-.DS_Store
-Thumbs.db
-
-# Logs
-*.log
-
-# Large model files
-*.pt
-*.bin
-*.model
-
-# Audio files
-*.wav
-*.mp3
-*.m4a
-
-# Certificates (auto-generated)
-*.pem
+.env.local
+.env.production
+.env.development
 *.key
-certs/*.pem
-certs/*.key
+*.pem
+*.p12
+*.pfx
 
-# Lock files (auto-generated)
-uv.lock
-poetry.lock
-
-# Cache and model files
-.cache/
-models/
-*.pt
-*.bin
-*.model
-*.safetensors
-*.h5
-*.onnx
-
-# Large data files
-*.tar.gz
-*.zip
-*.7z
-data/
-datasets/
-
-# Temporary files
+# Logs and temporary files
+*.log
 *.tmp
 *.temp
+*.bak
+*.swp
+*.swo
+*~
 
-# API documentation files (contain sensitive examples)
-t2v.txt
-translate.txt
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
 
-# Test files (may contain API keys)
+# IDE and editor files
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
+.spyderproject
+.spyproject
+
+# Audio and media files (if any)
+*.wav
+*.mp3
+*.mp4
+*.avi
+
+# Certificate files
+certs/
+certificates/
+
+# Model files (Whisper models can be large)
+models/
+*.pt
+*.onnx
+
+# Development and test files
 test_*.py
-*test.py
-tests/
+*_test.py
+debug_*
+temp_*
+
+# Node.js (if frontend has node modules)
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*

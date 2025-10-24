@@ -106,6 +106,8 @@ class WebSocketHandler:
                 await self._handle_audio_data(data)
             elif msg_type == "get_status":
                 await self._handle_get_status()
+            elif msg_type == "clear_all_tasks":
+                await self._handle_clear_all_tasks()
             else:
                 await self._send_error(f"Unknown message type: {msg_type}")
 
@@ -228,7 +230,7 @@ class WebSocketHandler:
                 return
 
             audio_bytes = base64.b64decode(audio_base64)
-            logger.debug(f"Received audio chunk: {len(audio_bytes)} bytes")
+            logger.info(f"🎤 Received audio chunk: {len(audio_bytes)} bytes")  # 改为INFO级别便于调试
 
             # Add to audio processor
             audio_processor = conn_data["audio_processor"]
@@ -266,6 +268,9 @@ class WebSocketHandler:
 
     async def _on_transcription_complete(self, result: dict):
         """Async callback for transcription completion"""
+        logger.info(f"🎤 Transcription completed for {self.client_id}: '{result['text'][:50]}...'")
+
+        # Send transcription result
         await self._send_message({
             "type": "transcription",
             "data": {
@@ -281,7 +286,16 @@ class WebSocketHandler:
             target_language = conn_data["config"]["target_language"]
             hot_words = conn_data["config"].get("hot_words", [])
             translation_style = conn_data["config"].get("translation_style", "default")
-            await conn_data["translation_queue"].add_task(result["text"], target_language, hot_words, translation_style)
+
+            await conn_data["translation_queue"].add_task(
+                result["text"],
+                target_language,
+                hot_words,
+                translation_style
+            )
+        else:
+            logger.warning(f"Translation queue setup failed - missing configuration")
+
 
     async def _on_transcription_error(self, error: str):
         """Async callback for transcription errors"""
@@ -292,6 +306,9 @@ class WebSocketHandler:
 
     async def _on_translation_complete(self, task_id: str, result: dict):
         """Async callback for translation completion"""
+        logger.info(f"📝 Translation completed for task {task_id}")
+
+        # Send translation result
         await self._send_message({
             "type": "translation",
             "data": {
@@ -301,6 +318,7 @@ class WebSocketHandler:
                 "target_language": result["target_language"]
             }
         })
+
 
     async def _on_audio_chunk(self, task_id: str, chunk_data: bytes, is_final: bool, audio_format: str):
         """Async callback for streaming audio chunks"""
@@ -375,6 +393,43 @@ class WebSocketHandler:
     async def _send_message(self, message: dict):
         """Send message to client"""
         await manager.send_message(self.client_id, message)
+
+
+    async def _handle_clear_all_tasks(self):
+        """Handle clear all tasks message"""
+        try:
+            logger.info(f"🧹 Clearing all tasks for client {self.client_id}")
+
+            conn_data = manager.get_connection_data(self.client_id)
+            if not conn_data:
+                await self._send_error("Not configured")
+                return
+
+            # Stop audio processor if exists
+            audio_processor = conn_data.get("audio_processor")
+            if audio_processor:
+                logger.info(f"🔇 Stopping audio processor for {self.client_id}")
+                # Clear any accumulated audio data
+                audio_processor.reset()
+
+            # Clear translation queue tasks
+            translation_queue = conn_data.get("translation_queue")
+            if translation_queue:
+                logger.info(f"🗑️ Clearing translation queue for {self.client_id}")
+                # Cancel pending translations
+                await translation_queue.clear_pending_tasks()
+
+            # Send confirmation to client
+            await self._send_message({
+                "type": "all_tasks_cleared",
+                "data": {"message": "所有任务已清除"}
+            })
+
+            logger.info(f"✅ All tasks cleared for client {self.client_id}")
+
+        except Exception as e:
+            logger.error(f"Clear all tasks error for {self.client_id}: {e}")
+            await self._send_error(f"Failed to clear tasks: {str(e)}")
 
     async def _send_error(self, error: str):
         """Send error message to client"""

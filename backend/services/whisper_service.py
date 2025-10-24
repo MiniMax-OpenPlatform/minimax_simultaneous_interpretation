@@ -120,9 +120,11 @@ class WhisperService:
                 audio_data
             )
 
-            # Extract relevant information
+            # Extract transcription
+            text = result["text"].strip()
+
             transcription = {
-                "text": result["text"].strip(),
+                "text": text,
                 "language": result["language"],
                 "segments": result.get("segments", []),
                 "confidence": self._calculate_confidence(result)

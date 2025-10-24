@@ -191,13 +191,18 @@ class TranslationQueue:
         self.active_tasks[task.id] = task
 
         logger.info(f"Worker {worker_name} processing task {task.id}")
+        task_start_time = asyncio.get_event_loop().time()
 
         try:
             # Step 1: Translate text
+            translation_start_time = asyncio.get_event_loop().time()
             translated_text = await asyncio.wait_for(
                 self.minimax_client.translate_text(task.text, task.target_language, task.hot_words, task.translation_style),
                 timeout=task.timeout_seconds * 0.6  # 60% of timeout for translation
             )
+            translation_end_time = asyncio.get_event_loop().time()
+            translation_duration = (translation_end_time - translation_start_time) * 1000
+            logger.info(f"⏱️ Translation Performance: {translation_duration:.0f}ms for '{task.text[:30]}...' -> '{translated_text[:30]}...'")
 
             if not translated_text or not translated_text.strip():
                 raise Exception("Translation returned empty result")
@@ -219,7 +224,7 @@ class TranslationQueue:
                         None, self.translation_callback, task.id, translation_result
                     )
 
-            # Step 2: Synthesize audio with streaming support
+            # Step 2: Text-to-speech synthesis
             # Define streaming chunk callback
             async def chunk_callback(chunk_data: bytes, is_final: bool, audio_format: str):
                 if self.audio_chunk_callback:
@@ -230,10 +235,13 @@ class TranslationQueue:
                             None, self.audio_chunk_callback, task.id, chunk_data, is_final, audio_format
                         )
 
+            tts_start_time = asyncio.get_event_loop().time()
             audio_data = await asyncio.wait_for(
                 self.t2v_service.text_to_speech(translated_text, chunk_callback),
                 timeout=task.timeout_seconds * 0.4  # 40% of timeout for synthesis
             )
+            tts_end_time = asyncio.get_event_loop().time()
+            tts_duration = (tts_end_time - tts_start_time) * 1000
 
             if audio_data:
                 # Extract audio bytes and format for logging
@@ -257,7 +265,12 @@ class TranslationQueue:
             # Mark as completed
             task.status = TaskStatus.COMPLETED
             task.completed_at = time.time()
+            task_end_time = asyncio.get_event_loop().time()
+            total_duration = (task_end_time - task_start_time) * 1000
 
+            logger.info(f"⏱️ Translation Performance: {translation_duration:.0f}ms for '{task.text[:30]}...'")
+            logger.info(f"⏱️ TTS Performance: {tts_duration:.0f}ms for {len(translated_text)} chars")
+            logger.info(f"⏱️ Total Task Performance: {total_duration:.0f}ms (Translation: {translation_duration:.0f}ms, TTS: {tts_duration:.0f}ms)")
             logger.info(f"Task {task.id} completed successfully in {task.completed_at - task.started_at:.2f}s")
 
         except asyncio.TimeoutError:
@@ -323,6 +336,32 @@ class TranslationQueue:
             "error": task.error,
             "result": task.result
         }
+
+    async def clear_pending_tasks(self):
+        """Clear all pending tasks and cancel active tasks"""
+        # Clear pending queue
+        cleared_pending = 0
+        while not self.pending_queue.empty():
+            try:
+                task = self.pending_queue.get_nowait()
+                task.status = TaskStatus.FAILED
+                task.error = "Task cleared by user"
+                cleared_pending += 1
+            except asyncio.QueueEmpty:
+                break
+
+        # Cancel active tasks
+        cleared_active = 0
+        for task_id, task in list(self.active_tasks.items()):
+            task.status = TaskStatus.FAILED
+            task.error = "Task cancelled by user"
+            cleared_active += 1
+
+        # Clear completed tasks
+        cleared_completed = len(self.completed_tasks)
+        self.completed_tasks.clear()
+
+        logger.info(f"Translation queue cleared: {cleared_pending} pending, {cleared_active} active, {cleared_completed} completed")
 
     def get_queue_stats(self) -> Dict[str, Any]:
         """Get queue statistics"""

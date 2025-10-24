@@ -7,6 +7,7 @@ import webrtcvad
 import numpy as np
 import asyncio
 import logging
+import time
 from typing import List, Optional, Callable, AsyncGenerator
 from collections import deque
 import audioop
@@ -22,9 +23,10 @@ class AudioProcessor:
     def __init__(self,
                  sample_rate: int = 16000,
                  frame_duration_ms: int = 30,
-                 vad_mode: int = 3,  # Strictest VAD mode to minimize false positives
-                 silence_threshold_ms: int = 500,  # Faster speech segment detection
-                 min_speech_duration_ms: int = 800):  # Much longer minimum to filter out short noise
+                 vad_mode: int = 0,  # Least aggressive VAD mode - only very clear speech
+                 silence_threshold_ms: int = 500,   # Much longer silence threshold to reduce false triggers
+                 min_speech_duration_ms: int = 100,  # Minimal filter - allow any detected speech
+                 max_speech_duration_ms: int = 30000):  # Support very long speech up to 30 seconds
         """
         Initialize audio processor
 
@@ -34,12 +36,14 @@ class AudioProcessor:
             vad_mode: VAD aggressiveness (0=least aggressive, 3=most aggressive)
             silence_threshold_ms: Silence duration to trigger processing
             min_speech_duration_ms: Minimum speech duration to process
+            max_speech_duration_ms: Maximum speech duration before forcing processing
         """
         self.sample_rate = sample_rate
         self.frame_duration_ms = frame_duration_ms
         self.vad_mode = vad_mode
         self.silence_threshold_ms = silence_threshold_ms
         self.min_speech_duration_ms = min_speech_duration_ms
+        self.max_speech_duration_ms = max_speech_duration_ms
 
         # Calculate frame size
         self.frame_size = int(sample_rate * frame_duration_ms / 1000)
@@ -54,6 +58,7 @@ class AudioProcessor:
         self.silence_frames = 0
         self.silence_threshold_frames = int(silence_threshold_ms / frame_duration_ms)
         self.min_speech_frames = int(min_speech_duration_ms / frame_duration_ms)
+        self.max_speech_frames = int(max_speech_duration_ms / frame_duration_ms)
 
         # State tracking
         self.is_speaking = False
@@ -96,8 +101,19 @@ class AudioProcessor:
             Completed speech segment or None
         """
         try:
-            # VAD detection
+            # VAD detection with timing
+            vad_start = time.time()
             is_speech = self.vad.is_speech(frame_data, self.sample_rate)
+            vad_duration = (time.time() - vad_start) * 1000  # Convert to ms
+
+            # Log VAD timing periodically (every 100 frames to avoid spam)
+            if hasattr(self, '_vad_call_count'):
+                self._vad_call_count += 1
+            else:
+                self._vad_call_count = 1
+
+            if self._vad_call_count % 100 == 0:
+                logger.debug(f"⏱️ VAD Performance: {vad_duration:.2f}ms for 30ms frame")
 
             if is_speech:
                 # Speech detected
@@ -106,7 +122,19 @@ class AudioProcessor:
 
                 if not self.speech_started:
                     self.speech_started = True
-                    logger.debug("Speech started")
+                    logger.info(f"🎤 Speech STARTED - VAD detected voice activity")
+
+                # Log speech progress every 50 frames (1.5 seconds)
+                if len(self.speech_frames) % 50 == 0:
+                    duration = len(self.speech_frames) * self.frame_duration_ms / 1000
+                    logger.info(f"🎤 Speech in progress: {duration:.1f}s accumulated")
+
+                # Check if maximum speech duration reached - force processing for 2-second sentences
+                if len(self.speech_frames) >= self.max_speech_frames:
+                    logger.info(f"🚨 Maximum speech duration reached ({self.max_speech_duration_ms}ms), forcing ASR processing")
+                    segment = self._finalize_segment()
+                    self._reset_state()
+                    return segment
 
             else:
                 # Silence detected
@@ -117,16 +145,25 @@ class AudioProcessor:
                     if self.silence_frames <= 3:  # Add up to 3 silence frames
                         self.speech_frames.append(frame_data)
 
+                    # Log silence progress
+                    if self.silence_frames % 10 == 0:  # Every 300ms of silence
+                        silence_duration = self.silence_frames * self.frame_duration_ms
+                        speech_duration = len(self.speech_frames) * self.frame_duration_ms / 1000
+                        logger.info(f"🔇 Silence detected: {silence_duration}ms (speech so far: {speech_duration:.1f}s)")
+
                     # Check if silence threshold reached
                     if self.silence_frames >= self.silence_threshold_frames:
                         # End of speech segment
                         if len(self.speech_frames) >= self.min_speech_frames:
+                            logger.info(f"✅ Speech segment ready for ASR: {len(self.speech_frames)} frames = {len(self.speech_frames) * self.frame_duration_ms / 1000:.1f}s")
                             segment = self._finalize_segment()
                             self._reset_state()
                             return segment
                         else:
                             # Too short, discard
-                            logger.debug(f"Discarding short segment: {len(self.speech_frames)} frames < {self.min_speech_frames} min")
+                            speech_duration = len(self.speech_frames) * self.frame_duration_ms / 1000
+                            min_duration = self.min_speech_frames * self.frame_duration_ms / 1000
+                            logger.info(f"❌ Discarding short segment: {speech_duration:.1f}s < {min_duration:.1f}s minimum")
                             self._reset_state()
 
         except Exception as e:
@@ -146,6 +183,14 @@ class AudioProcessor:
 
         # Concatenate all speech frames
         audio_bytes = b''.join(self.speech_frames)
+
+        # Limit audio length to prevent slow processing (max 3 seconds)
+        max_samples = self.sample_rate * 3  # 3 seconds max
+        max_bytes = max_samples * 2  # 16-bit = 2 bytes per sample
+
+        if len(audio_bytes) > max_bytes:
+            logger.warning(f"Truncating long audio segment from {len(audio_bytes)/2/self.sample_rate:.2f}s to 3.0s")
+            audio_bytes = audio_bytes[:max_bytes]
 
         # Convert to numpy array (16-bit PCM to float32)
         audio_array = np.frombuffer(audio_bytes, dtype=np.int16).astype(np.float32)
@@ -195,9 +240,10 @@ class StreamingAudioProcessor:
     def __init__(self,
                  whisper_service,
                  sample_rate: int = 16000,
-                 vad_mode: int = 3,  # Strictest VAD mode to minimize false positives
-                 silence_threshold_ms: int = 500,  # Faster speech segment detection
-                 min_speech_duration_ms: int = 800):  # Much longer minimum to filter out short noise
+                 vad_mode: int = 0,  # Least aggressive VAD mode - only very clear speech
+                 silence_threshold_ms: int = 500,   # Much longer silence threshold to reduce false triggers
+                 min_speech_duration_ms: int = 100,  # Minimal filter - allow any detected speech
+                 max_speech_duration_ms: int = 30000):  # Support very long speech up to 30 seconds
         """
         Initialize streaming processor
 
@@ -207,13 +253,15 @@ class StreamingAudioProcessor:
             vad_mode: VAD aggressiveness
             silence_threshold_ms: Silence threshold
             min_speech_duration_ms: Minimum speech duration
+            max_speech_duration_ms: Maximum speech duration before forcing processing
         """
         self.whisper_service = whisper_service
         self.audio_processor = AudioProcessor(
             sample_rate=sample_rate,
             vad_mode=vad_mode,
             silence_threshold_ms=silence_threshold_ms,
-            min_speech_duration_ms=min_speech_duration_ms
+            min_speech_duration_ms=min_speech_duration_ms,
+            max_speech_duration_ms=max_speech_duration_ms
         )
         self.processing_queue = asyncio.Queue()
         self.is_running = False
@@ -239,9 +287,16 @@ class StreamingAudioProcessor:
                     break
 
                 # Transcribe with Whisper
+                asr_start_time = asyncio.get_event_loop().time()
                 result = await self.whisper_service.transcribe_audio(audio_segment)
+                asr_end_time = asyncio.get_event_loop().time()
+                asr_duration = (asr_end_time - asr_start_time) * 1000  # Convert to ms
 
                 if result and result.get("text", "").strip():
+                    logger.info(f"⏱️ ASR Performance: {asr_duration:.0f}ms for {len(audio_segment)/16000:.1f}s audio")
+
+                if result and result.get("text", "").strip():
+
                     # Call callback as async function
                     if asyncio.iscoroutinefunction(transcription_callback):
                         await transcription_callback(result)
@@ -293,6 +348,21 @@ class StreamingAudioProcessor:
             self.processing_queue.put_nowait(None)  # Shutdown signal
         except asyncio.QueueFull:
             pass
+
+    def reset(self):
+        """Reset audio processor and clear any accumulated audio data"""
+        # Reset the audio processor state
+        self.audio_processor._reset_state()
+        self.audio_processor.audio_buffer.clear()
+
+        # Clear the processing queue
+        while not self.processing_queue.empty():
+            try:
+                self.processing_queue.get_nowait()
+            except asyncio.QueueEmpty:
+                break
+
+        logger.info("StreamingAudioProcessor reset completed")
 
     def get_stats(self) -> dict:
         """Get processing statistics"""

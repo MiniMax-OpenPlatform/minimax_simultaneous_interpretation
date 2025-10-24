@@ -1,0 +1,25 @@
+# Web framework
+fastapi==0.104.1
+uvicorn[standard]==0.24.0
+
+# Audio processing
+openai-whisper==20231117
+webrtcvad==2.0.10
+numpy==1.24.3
+
+# HTTP client
+requests==2.31.0
+
+# Environment management
+python-dotenv==1.0.0
+
+# CORS support
+fastapi-cors==0.0.6
+
+# Additional dependencies for Whisper
+torch==2.1.0
+torchaudio==2.1.0
+
+# Optional: for better performance
+# torch==2.1.0+cu118 --index-url https://download.pytorch.org/whl/cu118
+# torchaudio==2.1.0+cu118 --index-url https://download.pytorch.org/whl/cu118
