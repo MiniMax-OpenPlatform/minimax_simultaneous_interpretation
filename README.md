@@ -103,28 +103,7 @@ source .venv/bin/activate
 pip install -r requirements.txt
 ```
 
-#### 4. 配置环境变量
-```bash
-# 复制配置模板
-cp .env.example .env
-
-# 编辑配置文件，添加你的API密钥
-nano .env
-```
-
-**必须配置的环境变量**：
-```bash
-# MiniMax API配置
-MINIMAX_API_KEY=your_minimax_api_key_here
-
-# T2V API配置（通常与MiniMax相同）
-T2V_API_KEY=your_minimax_api_key_here
-
-# 默认音色配置
-VOICE_ID=male-qn-qingse
-```
-
-#### 5. 生成SSL证书
+#### 4. 生成SSL证书
 ```bash
 # 创建证书目录
 mkdir -p certs
@@ -136,7 +115,7 @@ openssl req -x509 -newkey rsa:4096 -keyout certs/key.pem -out certs/cert.pem -da
 # openssl req -x509 -newkey rsa:4096 -keyout certs/key.pem -out certs/cert.pem -days 365 -nodes -subj "/C=CN/ST=Beijing/L=Beijing/O=MiniMaxTranslator/CN=YOUR_IP" -addext "subjectAltName=IP:YOUR_IP,IP:127.0.0.1,DNS:localhost"
 ```
 
-#### 6. 启动服务
+#### 5. 启动服务
 ```bash
 # 本地启动
 python run.py
@@ -149,28 +128,23 @@ python run_remote.py
 
 #### 本地访问
 ```bash
-# 使用run.py启动（默认8000端口）
+# 使用run.py启动（默认8867端口）
 python run.py
 ```
-浏览器访问：https://localhost:8000/frontend
+浏览器访问：https://localhost:8867/frontend
 
 #### 远程访问
 ```bash
-# 方式1：使用环境变量配置
+# 使用环境变量配置
 export HOST=0.0.0.0
-export PORT=8000
-python run_remote.py
-
-# 方式2：配置.env文件
-echo "HOST=0.0.0.0" >> .env
-echo "PORT=8000" >> .env
+export PORT=8867
 python run_remote.py
 ```
 
 浏览器访问：
-- **网络访问**: https://your-actual-ip:8000/frontend
-- **API文档**: https://your-actual-ip:8000/docs
-- **健康检查**: https://your-actual-ip:8000/health
+- **网络访问**: https://your-actual-ip:8867/frontend
+- **API文档**: https://your-actual-ip:8867/docs
+- **健康检查**: https://your-actual-ip:8867/health
 
 > ⚠️ **注意**:
 > 1. 首次访问时浏览器会提示SSL证书不安全，点击"高级"→"继续访问"即可
@@ -184,10 +158,12 @@ python run_remote.py
 #### 1. 系统配置
 1. 打开Web界面
 2. 在配置面板中输入MiniMax API密钥
-3. 选择目标翻译语言
-4. 设置翻译风格（可选）
-5. 添加热词/专业术语（可选）
-6. 点击"Configure"按钮
+3. 选择或输入Voice ID（如：male-qn-qingse）
+4. 选择源语言（自动检测或手动指定）
+5. 选择目标翻译语言
+6. 设置翻译风格（可选）
+7. 添加热词/专业术语（可选）
+8. 点击"Configure"按钮
 
 #### 2. 开始翻译
 1. 点击"Start Recording"开始录音
@@ -244,69 +220,24 @@ python run_remote.py
 
 ## ⚙️ 配置选项
 
-### 环境变量配置
+### 系统配置
+所有配置均通过Web界面进行，无需修改配置文件：
 
 #### API配置
-```bash
-# MiniMax API密钥
-MINIMAX_API_KEY=sk-xxx
+- **MiniMax API密钥**：在Web界面配置面板输入
+- **Voice ID**：在Web界面输入音色ID（如：male-qn-qingse）
 
-# T2V API密钥（语音合成）
-T2V_API_KEY=sk-xxx
-
-# 默认音色ID
-VOICE_ID=male-qn-qingse
-```
-
-#### 服务器配置
+#### 服务器配置（可选）
+如需修改服务器设置，可通过环境变量配置：
 ```bash
 # 服务器地址（远程访问使用0.0.0.0，本地使用127.0.0.1）
 HOST=0.0.0.0
-# 服务器端口（可自定义，默认8000）
-PORT=8000
-
-# SSL证书路径
-SSL_KEYFILE=certs/key.pem
-SSL_CERTFILE=certs/cert.pem
-```
-
-**远程访问配置说明**：
-- `HOST=0.0.0.0`：监听所有网络接口，允许外部访问
-- `HOST=127.0.0.1`：仅本地访问
-- `PORT`：可修改为任意可用端口，避免冲突
-
-#### Whisper配置
-```bash
-# 模型大小 (tiny, base, small, medium, large)
-WHISPER_MODEL=large
-
-# 计算设备 (cpu, cuda)
-WHISPER_DEVICE=cuda
-
-# 音频采样率
-SAMPLE_RATE=16000
-```
-
-#### 高级配置
-```bash
-# VAD模式 (0-3, 数字越大越敏感)
-VAD_MODE=3
-
-# 静音阈值（毫秒）
-SILENCE_THRESHOLD_MS=500
-
-# 并发翻译任务数
-MAX_CONCURRENT_TRANSLATIONS=3
-
-# 翻译超时时间（秒）
-DEFAULT_TIMEOUT_SECONDS=8.0
-
-# 日志级别
-LOG_LEVEL=INFO
+# 服务器端口（可自定义，默认8867）
+PORT=8867
 ```
 
 ### 音色选择
-系统支持多种预设音色，可通过`VOICE_ID`环境变量配置：
+系统支持多种预设音色，在Web界面的Voice ID字段输入：
 
 | 音色ID | 描述 | 语言 |
 |--------|------|------|
@@ -479,7 +410,7 @@ COPY requirements.txt .
 RUN pip install -r requirements.txt
 
 COPY . .
-EXPOSE 8000
+EXPOSE 8867
 
 CMD ["python", "run.py"]
 EOF
@@ -492,8 +423,7 @@ docker build -t minimax-translator .
 ```bash
 docker run -d \
   --name translator \
-  -p 8000:8000 \
-  -e MINIMAX_API_KEY=your-key \
+  -p 8867:8867 \
   -v $(pwd)/certs:/app/certs \
   minimax-translator
 ```
@@ -516,13 +446,13 @@ server {
     ssl_certificate_key /path/to/your/key.pem;
 
     location / {
-        proxy_pass https://localhost:8000;
+        proxy_pass https://localhost:8867;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
     }
 
     location /ws {
-        proxy_pass https://localhost:8000;
+        proxy_pass https://localhost:8867;
         proxy_http_version 1.1;
         proxy_set_header Upgrade $http_upgrade;
         proxy_set_header Connection "upgrade";
@@ -637,7 +567,7 @@ htop
 nvidia-smi -l 1
 
 # 监控网络连接
-netstat -an | grep 8000
+netstat -an | grep 8867
 ```
 
 ## 🤝 贡献指南

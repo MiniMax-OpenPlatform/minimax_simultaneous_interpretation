@@ -156,13 +156,19 @@ class WebSocketHandler:
             # Start queue workers
             await translation_queue.start_workers()
 
-            # Initialize audio processor
-            audio_processor = StreamingAudioProcessor(self.whisper_service)
+            # Initialize audio processor with source language support
+            source_language = config.get("source_language", "auto")
+            logger.info(f"📝 Received source_language configuration: '{source_language}'")
+            # Pass None for auto-detection, otherwise pass the specified language
+            whisper_language = None if source_language == "auto" else source_language
+            logger.info(f"📝 Whisper will use language parameter: {whisper_language}")
+            audio_processor = StreamingAudioProcessor(self.whisper_service, source_language=whisper_language)
 
             # Store in connection data (only store config keys needed, not the full config with API keys)
             if conn_data:
                 conn_data.update({
                     "config": {
+                        "source_language": config.get("source_language", "auto"),
                         "target_language": config["target_language"],
                         "voice_id": config["voice_id"],
                         "hot_words": config.get("hot_words", []),

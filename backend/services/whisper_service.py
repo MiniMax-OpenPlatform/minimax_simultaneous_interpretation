@@ -58,12 +58,13 @@ class WhisperService:
             logger.error(f"Failed to load Whisper model: {str(e)}")
             raise
 
-    def _transcribe_sync(self, audio_data: np.ndarray) -> dict:
+    def _transcribe_sync(self, audio_data: np.ndarray, source_language: Optional[str] = None) -> dict:
         """
         Synchronous transcription function for thread execution
 
         Args:
             audio_data: Audio data as numpy array
+            source_language: Source language code (e.g., 'zh', 'en') or None for auto-detection
 
         Returns:
             Transcription result dictionary
@@ -72,10 +73,19 @@ class WhisperService:
             raise RuntimeError("Whisper model not loaded")
 
         try:
+            # Determine language parameter: use source_language if specified and not 'auto', otherwise auto-detect
+            language_param = source_language if source_language and source_language != 'auto' else None
+
+            # Log language selection for debugging
+            if language_param:
+                logger.info(f"Using specified source language: {language_param}")
+            else:
+                logger.info("Using automatic language detection")
+
             # Transcribe with Whisper Large (optimized for speed)
             result = self.model.transcribe(
                 audio_data,
-                language=None,  # Auto-detect language
+                language=language_param,  # Use specified language or auto-detect
                 task="transcribe",
                 verbose=False,
                 temperature=0.0,
@@ -98,12 +108,13 @@ class WhisperService:
             logger.error(f"Whisper transcription error: {str(e)}")
             raise
 
-    async def transcribe_audio(self, audio_data: np.ndarray) -> Optional[dict]:
+    async def transcribe_audio(self, audio_data: np.ndarray, source_language: Optional[str] = None) -> Optional[dict]:
         """
         Asynchronous transcription using Whisper Large
 
         Args:
             audio_data: Audio data as numpy array (sample_rate=16000)
+            source_language: Source language code (e.g., 'zh', 'en') or None for auto-detection
 
         Returns:
             Transcription result with text and detected language, or None if failed
@@ -117,7 +128,8 @@ class WhisperService:
             result = await loop.run_in_executor(
                 self.executor,
                 self._transcribe_sync,
-                audio_data
+                audio_data,
+                source_language
             )
 
             # Extract transcription

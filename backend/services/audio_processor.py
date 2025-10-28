@@ -243,19 +243,22 @@ class StreamingAudioProcessor:
                  vad_mode: int = 0,  # Least aggressive VAD mode - only very clear speech
                  silence_threshold_ms: int = 500,   # Much longer silence threshold to reduce false triggers
                  min_speech_duration_ms: int = 100,  # Minimal filter - allow any detected speech
-                 max_speech_duration_ms: int = 30000):  # Support very long speech up to 30 seconds
+                 max_speech_duration_ms: int = 30000,  # Support very long speech up to 30 seconds
+                 source_language: Optional[str] = None):  # Source language for Whisper
         """
         Initialize streaming processor
 
         Args:
             whisper_service: Whisper service instance
             sample_rate: Audio sample rate
+            source_language: Source language code for Whisper (e.g., 'zh', 'en') or None for auto-detection
             vad_mode: VAD aggressiveness
             silence_threshold_ms: Silence threshold
             min_speech_duration_ms: Minimum speech duration
             max_speech_duration_ms: Maximum speech duration before forcing processing
         """
         self.whisper_service = whisper_service
+        self.source_language = source_language  # Store source language for Whisper
         self.audio_processor = AudioProcessor(
             sample_rate=sample_rate,
             vad_mode=vad_mode,
@@ -288,7 +291,7 @@ class StreamingAudioProcessor:
 
                 # Transcribe with Whisper
                 asr_start_time = asyncio.get_event_loop().time()
-                result = await self.whisper_service.transcribe_audio(audio_segment)
+                result = await self.whisper_service.transcribe_audio(audio_segment, self.source_language)
                 asr_end_time = asyncio.get_event_loop().time()
                 asr_duration = (asr_end_time - asr_start_time) * 1000  # Convert to ms
 

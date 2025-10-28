@@ -276,7 +276,25 @@ async def serve_frontend():
                     <input type="text" id="minimax-key" placeholder="MiniMax API Key (用于翻译和语音合成)" style="width: 450px;" />
                 </div>
                 <div>
-                    <input type="text" id="voice-id" placeholder="Voice ID" value="male-qn-qingse" />
+                    <input type="text" id="voice-id" placeholder="Voice ID (例如: male-qn-qingse)" />
+                    <label for="source-language" style="margin: 8px; font-weight: 500; color: #495057;">源语言:</label>
+                    <select id="source-language" style="width: 120px; padding: 12px; margin: 8px; border: 2px solid #e9ecef; border-radius: 8px; font-size: 14px;">
+                        <option value="auto" selected>自动检测</option>
+                        <option value="zh">中文</option>
+                        <option value="en">English</option>
+                        <option value="ja">日本語</option>
+                        <option value="es">Español</option>
+                        <option value="fr">Français</option>
+                        <option value="de">Deutsch</option>
+                        <option value="ru">Русский</option>
+                        <option value="ko">한국어</option>
+                        <option value="it">Italiano</option>
+                        <option value="pt">Português</option>
+                        <option value="ar">العربية</option>
+                        <option value="hi">हिन्दी</option>
+                        <option value="th">ไทย</option>
+                        <option value="vi">Tiếng Việt</option>
+                    </select>
                     <label for="target-language" style="margin: 8px; font-weight: 500; color: #495057;">目标语言:</label>
                     <select id="target-language">
                         <option value="English">English</option>
@@ -655,6 +673,7 @@ async def serve_frontend():
                     minimax_api_key: minimaxApiKey,
                     t2v_api_key: minimaxApiKey,  // 使用同一个API Key
                     voice_id: document.getElementById('voice-id').value.trim(),
+                    source_language: document.getElementById('source-language').value,
                     target_language: document.getElementById('target-language').value,
                     translation_style: document.getElementById('translation-style').value,
                     hot_words: hotWords
