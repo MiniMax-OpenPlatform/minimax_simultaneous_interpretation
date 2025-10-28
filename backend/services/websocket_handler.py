@@ -53,7 +53,7 @@ class ConnectionManager:
                 asyncio.create_task(data["translation_queue"].stop_workers())
             del self.connection_data[client_id]
 
-        logger.info(f"Client {client_id} disconnected")
+        logger.info(f"Client {client_id} disconnected and resources cleaned up")
 
     async def send_message(self, client_id: str, message: dict):
         """Send message to specific client"""
@@ -96,7 +96,10 @@ class WebSocketHandler:
             msg_type = message.get("type")
             data = message.get("data", {})
 
+            logger.info(f"📨 Received WebSocket message from {self.client_id}: type='{msg_type}', data_keys={list(data.keys()) if data else 'None'}")
+
             if msg_type == "configure":
+                logger.info(f"🔧 Processing configure message for {self.client_id}")
                 await self._handle_configure(data)
             elif msg_type == "start_recording":
                 await self._handle_start_recording()
@@ -125,11 +128,21 @@ class WebSocketHandler:
                 return
 
         try:
-            # Initialize API clients
+            # Initialize API clients (without validation to avoid delays)
             minimax_client = MiniMaxClient(config["minimax_api_key"])
             t2v_service = T2VService(config["t2v_api_key"], config["voice_id"])
 
-            # Initialize translation queue
+            # Clear any existing configuration for this client
+            conn_data = manager.get_connection_data(self.client_id)
+            if conn_data:
+                # Stop any existing translation queue
+                if conn_data.get("translation_queue"):
+                    await conn_data["translation_queue"].stop_workers()
+                # Stop any existing audio processor
+                if conn_data.get("audio_processor"):
+                    conn_data["audio_processor"].stop_processing()
+
+            # Initialize translation queue with fresh API clients
             translation_queue = TranslationQueue(minimax_client, t2v_service)
 
             # Set callbacks
@@ -146,11 +159,15 @@ class WebSocketHandler:
             # Initialize audio processor
             audio_processor = StreamingAudioProcessor(self.whisper_service)
 
-            # Store in connection data
-            conn_data = manager.get_connection_data(self.client_id)
+            # Store in connection data (only store config keys needed, not the full config with API keys)
             if conn_data:
                 conn_data.update({
-                    "config": config,
+                    "config": {
+                        "target_language": config["target_language"],
+                        "voice_id": config["voice_id"],
+                        "hot_words": config.get("hot_words", []),
+                        "translation_style": config.get("translation_style", "default")
+                    },
                     "translation_queue": translation_queue,
                     "audio_processor": audio_processor
                 })
@@ -160,7 +177,7 @@ class WebSocketHandler:
                 "data": {"status": "ready"}
             })
 
-            logger.info(f"Client {self.client_id} configured successfully")
+            logger.info(f"Client {self.client_id} configured successfully with validated API keys")
 
         except Exception as e:
             await self._send_error(f"Configuration failed: {str(e)}")

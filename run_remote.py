@@ -60,7 +60,7 @@ def main():
 
     # Get configuration from environment
     host = os.getenv("HOST", "0.0.0.0")  # Listen on all interfaces for remote access
-    port = int(os.getenv("PORT", "8000"))  # Use configurable port
+    port = int(os.getenv("PORT", "8867"))  # Use configurable port
 
     # Get local IP for display
     local_ip = get_local_ip()

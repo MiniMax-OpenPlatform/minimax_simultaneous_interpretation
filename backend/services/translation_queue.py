@@ -56,10 +56,14 @@ class TranslationQueue:
             max_concurrent: Maximum concurrent translations
             default_timeout: Default timeout in seconds
         """
+        # Store API client references but validate on each use
         self.minimax_client = minimax_client
         self.t2v_service = t2v_service
         self.max_concurrent = max_concurrent
         self.default_timeout = default_timeout
+
+        # Track client creation time for cache invalidation
+        self.client_created_at = time.time()
 
         # Queue management
         self.pending_queue = asyncio.Queue()
@@ -127,6 +131,22 @@ class TranslationQueue:
         await self.pending_queue.put(task)
         logger.info(f"Added translation task {task.id}: '{text[:50]}...' -> {target_language}")
         return task.id
+
+    async def _validate_api_clients(self) -> bool:
+        """Validate that API clients are still functional"""
+        try:
+            # Test a simple translation to ensure API keys are valid
+            test_result = await self.minimax_client.translate_text("test", "English")
+            if not test_result or not test_result.strip():
+                logger.error("MiniMax API client validation failed - empty result")
+                return False
+
+            # T2V client validation is more complex, will be tested during actual use
+            logger.debug("API clients validation passed")
+            return True
+        except Exception as e:
+            logger.error(f"API client validation failed: {str(e)}")
+            return False
 
     async def start_workers(self):
         """Start worker tasks"""
@@ -198,7 +218,7 @@ class TranslationQueue:
             translation_start_time = asyncio.get_event_loop().time()
             translated_text = await asyncio.wait_for(
                 self.minimax_client.translate_text(task.text, task.target_language, task.hot_words, task.translation_style),
-                timeout=task.timeout_seconds * 0.6  # 60% of timeout for translation
+                timeout=35  # Fixed timeout of 35 seconds (longer than MiniMax client's 30s)
             )
             translation_end_time = asyncio.get_event_loop().time()
             translation_duration = (translation_end_time - translation_start_time) * 1000

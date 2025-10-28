@@ -45,11 +45,11 @@ def main():
 
     # Get configuration from environment
     host = os.getenv("HOST", "0.0.0.0")
-    port = int(os.getenv("PORT", 8000))
+    port = int(os.getenv("PORT", 8867))
 
     logger.info(f"Server will start at https://{host}:{port}")
-    logger.info("Access the web interface at: https://localhost:8000/frontend")
-    logger.info("API documentation at: https://localhost:8000/docs")
+    logger.info(f"Access the web interface at: https://localhost:{port}")
+    logger.info(f"API documentation at: https://localhost:{port}/docs")
 
     # Run the server
     try:

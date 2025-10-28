@@ -68,8 +68,9 @@ async def shutdown_event():
 
 @app.get("/")
 async def root():
-    """Root endpoint - serve frontend or status"""
-    return {"message": "Real-time Translator API", "status": "running"}
+    """Root endpoint - redirect to frontend"""
+    from fastapi.responses import RedirectResponse
+    return RedirectResponse(url="/frontend")
 
 
 @app.get("/health")
@@ -185,6 +186,28 @@ async def serve_frontend():
                 color: rgba(255,255,255,0.8);
                 margin-bottom: 4px;
                 font-weight: 500;
+            }
+            .error {
+                align-self: center;
+                background: linear-gradient(135deg, #dc3545, #c82333);
+                color: white;
+                padding: 12px 16px;
+                border-radius: 18px;
+                margin: 10px 20px;
+                box-shadow: 0 2px 8px rgba(220,53,69,0.3);
+                position: relative;
+                font-size: 14px;
+                line-height: 1.4;
+                text-align: center;
+                border: 2px solid #e74c3c;
+            }
+            .error::before {
+                content: "⚠️ 错误";
+                display: block;
+                font-size: 11px;
+                color: rgba(255,255,255,0.9);
+                margin-bottom: 4px;
+                font-weight: 600;
             }
             .controls {
                 margin: 25px 0;
@@ -593,6 +616,16 @@ async def serve_frontend():
                             console.error('No audio data received in message. Data keys:', Object.keys(data));
                             console.error('Full data object:', data);
                         }
+                        break;
+                    case 'translation_error':
+                        console.log('📛 Translation error received:', data.error);
+                        addMessage(`❌ 翻译失败: ${data.error}`, 'error');
+                        updateStatus('Translation failed: ' + data.error);
+                        break;
+                    case 'transcription_error':
+                        console.log('📛 Transcription error received:', data.error);
+                        addMessage(`❌ 语音识别失败: ${data.error}`, 'error');
+                        updateStatus('Transcription failed: ' + data.error);
                         break;
                     case 'error':
                         updateStatus('Error: ' + data.error);

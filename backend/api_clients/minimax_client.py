@@ -102,9 +102,40 @@ Translation:"""
             for chunk in response.iter_lines():
                 if chunk:
                     chunk_str = chunk.decode("utf-8").strip()
+
+                    # Check for direct error response (non-streaming)
+                    if chunk_str.startswith('{') and 'base_resp' in chunk_str:
+                        try:
+                            error_data = json.loads(chunk_str)
+                            if 'base_resp' in error_data:
+                                base_resp = error_data['base_resp']
+                                status_code = base_resp.get('status_code', 0)
+                                status_msg = base_resp.get('status_msg', 'Unknown error')
+
+                                if status_code != 0:
+                                    # Display the original API error response
+                                    error_message = f"MiniMax API Error {status_code}: {status_msg}"
+                                    logger.error(error_message)
+                                    raise Exception(error_message)
+                        except json.JSONDecodeError:
+                            pass
+
                     if chunk_str.startswith('data: '):
                         try:
                             data = json.loads(chunk_str[6:])  # Remove "data: " prefix
+
+                            # Check for error in streaming format
+                            if 'base_resp' in data:
+                                base_resp = data['base_resp']
+                                status_code = base_resp.get('status_code', 0)
+                                status_msg = base_resp.get('status_msg', 'Unknown error')
+
+                                if status_code != 0:
+                                    # Display the original API error response
+                                    error_message = f"MiniMax API Error {status_code}: {status_msg}"
+                                    logger.error(error_message)
+                                    raise Exception(error_message)
+
                             if 'choices' in data and len(data['choices']) > 0:
                                 delta = data['choices'][0].get('delta', {})
                                 content = delta.get('content', '')
