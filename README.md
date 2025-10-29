@@ -103,7 +103,27 @@ source .venv/bin/activate
 pip install -r requirements.txt
 ```
 
-#### 4. 生成SSL证书
+#### 4. 配置服务器设置（可选）
+```bash
+# 复制配置模板
+cp .env.example .env
+
+# 编辑配置文件，自定义端口等设置
+nano .env
+```
+
+**可配置的服务器选项**：
+```bash
+# 服务器地址（0.0.0.0允许远程访问，127.0.0.1仅本地访问）
+HOST=0.0.0.0
+# 服务器端口（可自定义，避免端口冲突）
+PORT=8867
+# SSL证书路径
+SSL_KEYFILE=certs/key.pem
+SSL_CERTFILE=certs/cert.pem
+```
+
+#### 5. 生成SSL证书
 ```bash
 # 创建证书目录
 mkdir -p certs
@@ -115,7 +135,7 @@ openssl req -x509 -newkey rsa:4096 -keyout certs/key.pem -out certs/cert.pem -da
 # openssl req -x509 -newkey rsa:4096 -keyout certs/key.pem -out certs/cert.pem -days 365 -nodes -subj "/C=CN/ST=Beijing/L=Beijing/O=MiniMaxTranslator/CN=YOUR_IP" -addext "subjectAltName=IP:YOUR_IP,IP:127.0.0.1,DNS:localhost"
 ```
 
-#### 5. 启动服务
+#### 6. 启动服务
 ```bash
 # 本地启动
 python run.py
@@ -221,19 +241,26 @@ python run_remote.py
 ## ⚙️ 配置选项
 
 ### 系统配置
-所有配置均通过Web界面进行，无需修改配置文件：
 
-#### API配置
+#### API配置（必须）
+通过Web界面进行配置，无需修改文件：
 - **MiniMax API密钥**：在Web界面配置面板输入
 - **Voice ID**：在Web界面输入音色ID（如：male-qn-qingse）
+- **源语言**：选择自动检测或指定语言
+- **目标语言**：选择翻译目标语言
 
 #### 服务器配置（可选）
-如需修改服务器设置，可通过环境变量配置：
+如需自定义端口或其他服务器设置：
+1. 复制配置文件：`cp .env.example .env`
+2. 编辑`.env`文件，修改以下选项：
 ```bash
-# 服务器地址（远程访问使用0.0.0.0，本地使用127.0.0.1）
+# 服务器地址（0.0.0.0允许远程访问，127.0.0.1仅本地访问）
 HOST=0.0.0.0
-# 服务器端口（可自定义，默认8867）
+# 服务器端口（可自定义，避免端口冲突）
 PORT=8867
+# SSL证书路径
+SSL_KEYFILE=certs/key.pem
+SSL_CERTFILE=certs/cert.pem
 ```
 
 ### 音色选择
