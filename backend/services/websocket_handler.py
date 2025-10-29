@@ -15,7 +15,7 @@ from .whisper_service import get_whisper_service
 from .audio_processor import StreamingAudioProcessor
 from .translation_queue import TranslationQueue
 from ..api_clients.minimax_client import MiniMaxClient
-from ..api_clients.t2v_client import T2VService
+from ..api_clients.t2a_client import T2AService
 
 logger = logging.getLogger(__name__)
 
@@ -120,7 +120,7 @@ class WebSocketHandler:
 
     async def _handle_configure(self, config: dict):
         """Handle configuration message"""
-        required_keys = ["minimax_api_key", "t2v_api_key", "voice_id", "target_language"]
+        required_keys = ["minimax_api_key", "t2a_api_key", "voice_id", "target_language"]
 
         for key in required_keys:
             if key not in config:
@@ -130,7 +130,7 @@ class WebSocketHandler:
         try:
             # Initialize API clients (without validation to avoid delays)
             minimax_client = MiniMaxClient(config["minimax_api_key"])
-            t2v_service = T2VService(config["t2v_api_key"], config["voice_id"])
+            t2a_service = T2AService(config["t2a_api_key"], config["voice_id"])
 
             # Clear any existing configuration for this client
             conn_data = manager.get_connection_data(self.client_id)
@@ -143,7 +143,7 @@ class WebSocketHandler:
                     conn_data["audio_processor"].stop_processing()
 
             # Initialize translation queue with fresh API clients
-            translation_queue = TranslationQueue(minimax_client, t2v_service)
+            translation_queue = TranslationQueue(minimax_client, t2a_service)
 
             # Set callbacks
             translation_queue.set_callbacks(

@@ -6,12 +6,12 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 This repository contains API documentation and example code for working with AI services:
 
-- **t2v.txt**: Text-to-speech API documentation in Chinese, describing WebSocket-based streaming audio synthesis
+- **t2a.txt**: Text-to-speech API documentation in Chinese, describing WebSocket-based streaming audio synthesis
 - **translate.txt**: Text completion API example using MiniMax AI service with Python requests
 
 ## Key Files
 
-- `t2v.txt`: Complete WebSocket API documentation for text-to-speech synthesis including connection setup, task management, and audio output handling
+- `t2a.txt`: Complete WebSocket API documentation for text-to-speech synthesis including connection setup, task management, and audio output handling
 - `translate.txt`: Python example for streaming chat completion using MiniMax API with authentication and response parsing
 
 ## API Integration Notes

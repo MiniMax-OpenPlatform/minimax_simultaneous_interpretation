@@ -15,7 +15,7 @@
 - ✅ Whisper Large模型本地ASR自动语言识别
 - ✅ VAD语音活动检测（0.5秒静音触发）
 - ✅ MiniMax API文本翻译
-- ✅ t2v API语音合成
+- ✅ t2a API语音合成
 - ✅ 实时播放合成音频
 - ✅ 用户配置界面（API Key、Voice ID、目标语言选择）
 - ✅ 原文+译文实时显示
@@ -38,7 +38,7 @@
 
 ### 关键业务逻辑 (Business Rules)
 1. **音频处理流程**：录音 → VAD检测 → 分片 → Whisper Large识别 → 队列处理
-2. **翻译流程**：文本 → MiniMax翻译 → t2v合成 → 音频播放
+2. **翻译流程**：文本 → MiniMax翻译 → t2a合成 → 音频播放
 3. **错误处理**：API失败记录日志，继续处理下一个片段
 4. **队列管理**：最多3个待处理项，超时8秒自动丢弃（考虑Large模型延迟）
 
@@ -93,7 +93,7 @@ sequenceDiagram
     participant B as 后端服务
     participant W as Whisper Large
     participant M as MiniMax API
-    participant T as T2V API
+    participant T as T2A API
 
     U->>F: 开始录音
     F->>F: 麦克风录音
@@ -132,7 +132,7 @@ flowchart TB
 
     D --> H[翻译队列管理]
     H --> I[MiniMax API客户端]
-    H --> J[T2V API客户端]
+    H --> J[T2A API客户端]
 
     D --> K[WebSocket广播]
     K --> B
@@ -145,7 +145,7 @@ flowchart TB
 
 #### 现有文件依赖
 - `translate.txt` → 集成为 `翻译API客户端模块`
-- `t2v.txt` → 集成为 `音频合成API客户端模块`
+- `t2a.txt` → 集成为 `音频合成API客户端模块`
 
 #### 新增核心模块
 
@@ -160,14 +160,14 @@ flowchart TB
 - `audio_processor.py` - 音频处理（VAD + Whisper Large）
 - `translation_queue.py` - 翻译队列管理
 - `api_clients/minimax_client.py` - 基于translate.txt
-- `api_clients/t2v_client.py` - 基于t2v.txt
+- `api_clients/t2a_client.py` - 基于t2a.txt
 - `websocket_handler.py` - WebSocket事件处理
 - `whisper_service.py` - Whisper Large模型服务
 
 #### 调用关系链
 ```
 用户录音 → AudioRecorder → WebSocket → audio_processor
-→ whisper_service(Large) → translation_queue → [minimax_client, t2v_client]
+→ whisper_service(Large) → translation_queue → [minimax_client, t2a_client]
 → websocket_handler → ChatInterface
 ```
 
@@ -198,7 +198,7 @@ flowchart TB
    - **缓解**: 音频预处理 + 噪音抑制
 
 5. **API稳定性风险**
-   - **风险**: MiniMax/T2V API调用失败或限流
+   - **风险**: MiniMax/T2A API调用失败或限流
    - **缓解**: 重试机制 + 降级策略
 
 6. **WebSocket连接风险**

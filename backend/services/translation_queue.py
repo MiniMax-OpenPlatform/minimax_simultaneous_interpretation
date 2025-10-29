@@ -44,7 +44,7 @@ class TranslationQueue:
 
     def __init__(self,
                  minimax_client,
-                 t2v_service,
+                 t2a_service,
                  max_concurrent: int = 3,
                  default_timeout: float = 45.0):  # Increased timeout to allow for MiniMax API
         """
@@ -52,13 +52,13 @@ class TranslationQueue:
 
         Args:
             minimax_client: MiniMax translation client
-            t2v_service: T2V speech synthesis service
+            t2a_service: T2V speech synthesis service
             max_concurrent: Maximum concurrent translations
             default_timeout: Default timeout in seconds
         """
         # Store API client references but validate on each use
         self.minimax_client = minimax_client
-        self.t2v_service = t2v_service
+        self.t2a_service = t2a_service
         self.max_concurrent = max_concurrent
         self.default_timeout = default_timeout
 
@@ -257,7 +257,7 @@ class TranslationQueue:
 
             tts_start_time = asyncio.get_event_loop().time()
             audio_data = await asyncio.wait_for(
-                self.t2v_service.text_to_speech(translated_text, chunk_callback),
+                self.t2a_service.text_to_speech(translated_text, chunk_callback),
                 timeout=task.timeout_seconds * 0.4  # 40% of timeout for synthesis
             )
             tts_end_time = asyncio.get_event_loop().time()
@@ -414,10 +414,10 @@ async def test_translation_queue():
         return
 
     minimax_client = MiniMaxClient(minimax_key)
-    t2v_service = T2VService(t2v_key, voice_id)
+    t2a_service = T2VService(t2v_key, voice_id)
 
     # Initialize queue
-    queue = TranslationQueue(minimax_client, t2v_service)
+    queue = TranslationQueue(minimax_client, t2a_service)
 
     # Set callbacks
     def on_translation(task_id, result):

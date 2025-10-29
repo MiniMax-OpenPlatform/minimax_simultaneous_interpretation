@@ -671,7 +671,7 @@ async def serve_frontend():
 
                 const config = {
                     minimax_api_key: minimaxApiKey,
-                    t2v_api_key: minimaxApiKey,  // 使用同一个API Key
+                    t2a_api_key: minimaxApiKey,  // 使用同一个API Key
                     voice_id: document.getElementById('voice-id').value.trim(),
                     source_language: document.getElementById('source-language').value,
                     target_language: document.getElementById('target-language').value,
