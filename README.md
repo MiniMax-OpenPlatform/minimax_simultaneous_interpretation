@@ -265,7 +265,7 @@ minimax-simultaneous-interpretation/
 ├── certs/                     # SSL证书目录
 ├── docs/                      # 项目文档
 ├── scripts/                   # 实用脚本
-├── .env.example              # 环境配置模板
+├── .env.example              # 服务器配置模板（可选）
 ├── requirements.txt          # Python依赖
 ├── run.py                    # 本地启动脚本
 └── run_remote.py             # 远程启动脚本
@@ -507,7 +507,7 @@ openssl req -x509 -newkey rsa:4096 -keyout certs/key.pem -out certs/cert.pem -da
 #### 2. API密钥错误
 **问题**: 翻译失败，提示API密钥无效
 **解决**:
-- 检查`.env`文件中的`MINIMAX_API_KEY`
+- 确认在Web界面输入的API密钥正确
 - 确认API密钥有效且有足够余额
 - 检查网络连接是否正常
 
