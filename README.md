@@ -1,5 +1,13 @@
 # MiniMax 同声传译系统
 
+## 🌐 在线体验
+
+**在线体验地址**: [https://solution.minimaxi.com/simultaneous-interpretation](https://solution.minimaxi.com/simultaneous-interpretation)
+
+> **⚠️ 注意**: 在线版本为CPU版本，中文ASR识别效果可能不佳。如需更好的识别效果，建议使用GPU版本本地部署。
+
+---
+
 基于MiniMax API的实时语音翻译系统，支持多语言同声传译、语音识别、文本翻译和语音合成。
 
 ![项目状态](https://img.shields.io/badge/状态-稳定-green)
